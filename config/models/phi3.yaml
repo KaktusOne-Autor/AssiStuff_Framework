@@ -1,0 +1,30 @@
+id: phi3
+version: "1.0.0"
+role: generalist
+domain: [chat, lightweight]
+avatar: assets/avatars/default.svg
+runtime:
+  backend: ollama
+  tag: phi3:latest
+  context_window: 4096
+  temperature: 0.3
+  max_tokens: 2048
+  keep_alive: 5m
+  format: text
+  options: {}
+capabilities:
+  provides: [chat.light, summarize]
+routing:
+  keywords: [summarize, short, quick]
+  priority: 45
+  cost_hint: low
+interop:
+  accepts_calls_from: ["*"]
+  can_call: []
+memory:
+  reads: [short_term]
+  writes: [short_term]
+  dossier_access: read
+provenance:
+  upstream: phi3:latest
+  redistribution: restricted

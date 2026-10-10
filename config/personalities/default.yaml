@@ -1,0 +1,3 @@
+id: default
+system_prompt: prompts/identities/default.md
+applies_to: [simple, router, planner, mpa]

@@ -1,0 +1,24 @@
+default_level: 0
+require_confirmation_level: 5
+deny_is_final: true
+no_confirmation_dialogs: true
+log_all_denials: true
+levels:
+  0:
+    id: "0"
+    description: Basic user
+  1:
+    id: "1"
+    description: Limited access
+  2:
+    id: "2"
+    description: Standard user
+  3:
+    id: "3"
+    description: Trusted user
+  4:
+    id: "4"
+    description: Privileged user
+  5:
+    id: "5"
+    description: Administrator

@@ -1,0 +1,31 @@
+Metadata-Version: 2.4
+Name: assistuff
+Version: 1.0
+Summary: AssiStuff Framework — local-first voice assistant with peer-to-peer models
+Author: CyberRabotnik
+License: MIT
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: pydantic>=2.6
+Requires-Dist: PyYAML>=6.0
+Requires-Dist: httpx>=0.27
+Requires-Dist: requests>=2.31
+Requires-Dist: psutil>=5.9
+Requires-Dist: numpy>=1.26
+Provides-Extra: gui
+Requires-Dist: PyQt6>=6.6; extra == "gui"
+Requires-Dist: pyqtgraph>=0.13; extra == "gui"
+Requires-Dist: qt-material>=2.14; extra == "gui"
+Provides-Extra: voice
+Requires-Dist: sounddevice>=0.4.7; extra == "voice"
+Requires-Dist: vosk>=0.3.44; extra == "voice"
+Provides-Extra: pack
+Requires-Dist: zstandard>=0.22; extra == "pack"
+Requires-Dist: cryptography>=42.0; extra == "pack"
+Requires-Dist: huggingface-hub>=0.23; extra == "pack"
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.23; extra == "dev"
+Requires-Dist: pytest-cov>=5.0; extra == "dev"
+Requires-Dist: ruff>=0.5; extra == "dev"
+Requires-Dist: mypy>=1.10; extra == "dev"

@@ -1,0 +1,30 @@
+id: qwen2-5-coder
+version: "1.0.0"
+role: specialist
+domain: [coding, software]
+avatar: assets/avatars/default.svg
+runtime:
+  backend: ollama
+  tag: qwen2.5-coder:7b
+  context_window: 8192
+  temperature: 0.2
+  max_tokens: 2048
+  keep_alive: 5m
+  format: text
+  options: {}
+capabilities:
+  provides: [code.write, code.review, code.explain]
+routing:
+  keywords: [code, coding, program, python, javascript, bug, function]
+  priority: 85
+  cost_hint: high
+interop:
+  accepts_calls_from: ["*"]
+  can_call: []
+memory:
+  reads: [short_term]
+  writes: [short_term]
+  dossier_access: read
+provenance:
+  upstream: qwen2.5-coder:7b
+  redistribution: restricted

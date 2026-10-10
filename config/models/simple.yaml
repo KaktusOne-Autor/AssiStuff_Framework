@@ -1,0 +1,36 @@
+id: simple
+version: "1.0.0"
+role: generalist
+domain: [assistant]
+avatar: assets/avatars/default.svg
+runtime:
+  backend: ollama
+  tag: qwen2.5:7b
+  context_window: 8192
+  temperature: 0.2
+  max_tokens: 2048
+  keep_alive: 5m
+  format: text
+  options: {}
+capabilities:
+  provides: [chat]
+  requires: []
+access:
+  min_level: 0
+  pupc_action: null
+routing:
+  keywords: [simple, chat, general]
+  priority: 50
+  cost_hint: medium
+interop:
+  accepts_calls_from: ['*']
+  can_call: []
+emits:
+  default_kind: result
+  can_emit: [result]
+memory:
+  reads: [working, short_term]
+  writes: [short_term]
+  dossier_access: read
+provenance:
+  redistribution: allowed

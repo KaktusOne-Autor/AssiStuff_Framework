@@ -1,0 +1,14 @@
+#!/bin/bash
+set -euo pipefail
+
+APP_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+PROJECT_ROOT="$(cd -- "$APP_DIR/.." && pwd)"
+LOG_DIR="$HOME/.assistuff/logs"
+mkdir -p "$LOG_DIR"
+
+if [[ ! -x "$PROJECT_ROOT/bin/assistuff" ]]; then
+    echo "AssiStuff launcher not found: $PROJECT_ROOT/bin/assistuff" >> "$LOG_DIR/gui-launch.log"
+    exit 1
+fi
+
+exec "$PROJECT_ROOT/bin/assistuff" "$@" >> "$LOG_DIR/gui-launch.log" 2>&1

@@ -1,0 +1,24 @@
+id: calculator
+version: "1.0.0"
+kind: skill
+capabilities:
+  provides: [calculator, arithmetic]
+  requires: []
+access:
+  min_level: 0
+interop:
+  accepts_calls_from: ['*']
+  can_call: []
+emits:
+  default_kind: result
+  can_emit: [result]
+memory:
+  reads: []
+  writes: []
+  dossier_access: none
+network:
+  outbound: false
+  hosts: []
+implementation:
+  module: assistuff.skills.builtin.calculator
+  entrypoint: run

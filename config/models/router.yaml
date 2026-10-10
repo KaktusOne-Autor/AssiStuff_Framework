@@ -1,0 +1,35 @@
+id: router
+version: "1.0.0"
+role: utility
+domain: [routing]
+avatar: assets/avatars/default.svg
+runtime:
+  backend: ollama
+  tag: qwen2.5:3b
+  context_window: 8192
+  temperature: 0.2
+  max_tokens: 2048
+  keep_alive: 5m
+  format: text
+  options: {}
+capabilities:
+  provides: [route]
+  requires: []
+access:
+  min_level: 0
+routing:
+  keywords: [route, dispatch]
+  priority: 90
+  cost_hint: low
+interop:
+  accepts_calls_from: ['*']
+  can_call: []
+emits:
+  default_kind: result
+  can_emit: [result]
+memory:
+  reads: [short_term]
+  writes: [short_term]
+  dossier_access: read
+provenance:
+  redistribution: allowed

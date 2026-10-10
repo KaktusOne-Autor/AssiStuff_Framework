@@ -1,0 +1,30 @@
+id: qwen2-5-7b
+version: "1.0.0"
+role: generalist
+domain: [chat, reasoning]
+avatar: assets/avatars/default.svg
+runtime:
+  backend: ollama
+  tag: qwen2.5:7b
+  context_window: 8192
+  temperature: 0.3
+  max_tokens: 2048
+  keep_alive: 5m
+  format: text
+  options: {}
+capabilities:
+  provides: [chat, answer.general]
+routing:
+  keywords: [chat, explain, answer, general]
+  priority: 50
+  cost_hint: medium
+interop:
+  accepts_calls_from: ["*"]
+  can_call: []
+memory:
+  reads: [working, short_term]
+  writes: [short_term]
+  dossier_access: read
+provenance:
+  upstream: qwen2.5:7b
+  redistribution: restricted

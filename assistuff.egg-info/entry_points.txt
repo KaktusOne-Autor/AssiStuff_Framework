@@ -1,0 +1,3 @@
+[console_scripts]
+assistuff = assistuff.__main__:main
+assistuff-pack = assistuff.pack.cli:main

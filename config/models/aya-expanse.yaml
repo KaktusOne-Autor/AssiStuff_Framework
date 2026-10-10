@@ -1,0 +1,30 @@
+id: aya-expanse
+version: "1.0.0"
+role: generalist
+domain: [multilingual, chat]
+avatar: assets/avatars/default.svg
+runtime:
+  backend: ollama
+  tag: aya-expanse:8b
+  context_window: 8192
+  temperature: 0.3
+  max_tokens: 2048
+  keep_alive: 5m
+  format: text
+  options: {}
+capabilities:
+  provides: [chat.multilingual, translate]
+routing:
+  keywords: [translate, translation, multilingual, перевод]
+  priority: 70
+  cost_hint: high
+interop:
+  accepts_calls_from: ["*"]
+  can_call: []
+memory:
+  reads: [short_term]
+  writes: [short_term]
+  dossier_access: read
+provenance:
+  upstream: aya-expanse:8b
+  redistribution: restricted

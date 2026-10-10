@@ -1,0 +1,30 @@
+id: qwen2-5-3b
+version: "1.0.0"
+role: utility
+domain: [routing, lightweight]
+avatar: assets/avatars/default.svg
+runtime:
+  backend: ollama
+  tag: qwen2.5:3b
+  context_window: 8192
+  temperature: 0.2
+  max_tokens: 1024
+  keep_alive: 5m
+  format: text
+  options: {}
+capabilities:
+  provides: [route, chat.light]
+routing:
+  keywords: [route, dispatch, quick]
+  priority: 60
+  cost_hint: low
+interop:
+  accepts_calls_from: ["*"]
+  can_call: []
+memory:
+  reads: [short_term]
+  writes: [short_term]
+  dossier_access: read
+provenance:
+  upstream: qwen2.5:3b
+  redistribution: restricted
