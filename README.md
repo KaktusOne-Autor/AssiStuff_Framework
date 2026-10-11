@@ -78,6 +78,11 @@ model manifest is updated. The telemetry dock is hidden by default and can be
 toggled from **View → Toggle telemetry dock** (`Ctrl+T`). **View → Reload
 panels** (`Ctrl+R`) calls `reload()` on panels that provide it.
 
+The planned Mermaid-like model/skill graph editor and selectable Hot-plug /
+Selected-for-background Ollama residency modes are specified in
+[ADR-0014](./docs/adr/ADR-0014-graph-configuration-and-ollama-residency-modes.md);
+they are not implemented yet.
+
 ## CLI
 
 Run `./bin/assistuff --help` for all options. Common commands:
@@ -270,6 +275,8 @@ and `--mic` options are also not connected to a voice pipeline.
 - Vector retrieval, fuzzy/forced reindex, tag audit, memory compaction, and
   automatic dossier compilation are unfinished.
 - Model residency warm-up and complete GUI theme application are unfinished.
+- Mermaid-like graph configuration and the Hot-plug /
+  Selected-for-background residency modes are specified but unfinished.
 - In-place package signing, publishing, bundled verification key, and key
   rotation workflow are unfinished.
 
@@ -288,3 +295,4 @@ and `--mic` options are also not connected to a voice pipeline.
 - [ADR-0011 — Model manifests and SVG avatars](./docs/adr/ADR-0011-local-models-and-avatars.md)
 - [ADR-0012 — macOS app bundle](./docs/adr/ADR-0012-macos-one-click-app.md)
 - [ADR-0013 — Installed Ollama models](./docs/adr/ADR-0013-installed-ollama-models.md)
+- [ADR-0014 — Graph configuration and Ollama residency modes](./docs/adr/ADR-0014-graph-configuration-and-ollama-residency-modes.md)
