@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PyQt6.QtCore import QPointF, QRectF, QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QByteArray, QPointF, QRectF, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import (
     QColor,
     QFont,
@@ -12,9 +12,10 @@ from PyQt6.QtGui import (
     QPaintEvent,
     QPen,
 )
+from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import QSizePolicy, QWidget
 
-from assistuff.visual.vtt import MapPoint, Position, VttScene
+from assistuff.visual.vtt import MapPoint, Position, VttScene, render_vtt_svg
 
 _TERRAIN_COLORS = {
     "field": QColor("#718657"),
@@ -79,7 +80,7 @@ class VttMapWidget(QWidget):
         title_font.setBold(True)
         title_font.setPointSize(13)
         painter.setFont(title_font)
-        painter.drawText(18, 27, "SCENE BOARD")
+        painter.drawText(18, 27, game_map.title.upper())
 
         subtitle_font = QFont(self.font())
         subtitle_font.setPointSize(9)
@@ -88,9 +89,13 @@ class VttMapWidget(QWidget):
         painter.drawText(
             18,
             46,
-            f"Turn {scene.game.turn}  ·  "
-            f"{scene.game.moves_remaining}/{scene.game.moves_per_turn} MP  ·  "
-            f"Player {scene.game.player_label}",
+            (
+                f"{game_map.region}  ·  Turn {scene.game.turn}  ·  "
+                f"{scene.game.moves_remaining}/{scene.game.moves_per_turn} MP  ·  "
+                f"Player {scene.game.player_label}"
+                if game_map.ready
+                else "Build a playable scene with the AI game master."
+            ),
         )
 
         reachable = scene.game.reachable_costs()
@@ -159,6 +164,18 @@ class VttMapWidget(QWidget):
                     Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop,
                     str(x + 1),
                 )
+
+        if not game_map.ready:
+            painter.setPen(QColor("#eff7ed"))
+            prompt_font = QFont(self.font())
+            prompt_font.setBold(True)
+            prompt_font.setPointSize(15)
+            painter.setFont(prompt_font)
+            painter.drawText(
+                self.rect().adjusted(0, 40, 0, -40),
+                Qt.AlignmentFlag.AlignCenter,
+                "AI map not built yet",
+            )
 
         legend_y = min(self.height() - 13, y0 + game_map.height * cell + 29)
         painter.setPen(QColor("#aac3ae"))
@@ -324,6 +341,32 @@ class VttMapWidget(QWidget):
         font.setPointSize(max(8, int(diameter * 0.45)))
         painter.setFont(font)
         painter.drawText(marker, Qt.AlignmentFlag.AlignCenter, "P")
+
+
+class VttIllustrationWidget(QWidget):
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self._renderer = QSvgRenderer()
+        self.setMinimumSize(520, 390)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
+    def set_scene(self, scene: VttScene) -> None:
+        self._renderer.load(QByteArray(render_vtt_svg(scene).encode("utf-8")))
+        self.update()
+
+    def paintEvent(self, event: QPaintEvent) -> None:  # noqa: N802
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.fillRect(event.rect(), QColor("#0b1710"))
+        if self._renderer.isValid():
+            self._renderer.render(painter, QRectF(self.rect()))
+        else:
+            painter.setPen(QColor("#9ac8aa"))
+            painter.drawText(
+                self.rect(),
+                Qt.AlignmentFlag.AlignCenter,
+                "AI map illustration is unavailable",
+            )
 
 
 def point_at(scene: VttScene, position: Position) -> MapPoint | None:

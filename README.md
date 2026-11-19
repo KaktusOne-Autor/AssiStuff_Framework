@@ -21,20 +21,22 @@ retained, and `src/noredur/` remains a separate reference tree. See
 | --- | --- |
 | CLI and desktop GUI | Available; GUI requires the `gui` extra |
 | Local models | Ollama-backed routing, hot-plug and background residency |
-| Remote models | OpenAI-compatible chat-completions profiles |
+| Remote models | OpenAI-compatible chat-completions profiles; add API models in Settings ([guide](./docs/remote-models.md)) |
 | Memory | Working, SQLite short-term, Markdown/FTS long-term, and dossier layers |
 | Accounts | Local password accounts, profile binding, and PUPC levels |
 | Visual Output | Isolated HTML artifact storage and viewer |
-| Virtual Tabletop | Hot-seat and LAN play, point-buy characters, NPCs, Storyteller GM |
+| Virtual Tabletop | AI-authored playable maps, illustrated board, campaign history, active AI GM |
 | Skills and tools | Built-ins, instruction-only imports, and MCP stdio tools |
 | Model packages | `.nrdpkg` build, verify, sign, install, list, and uninstall |
 | Voice | Local capture, whisper.cpp, Vosk, Piper, and wake-word wiring; GUI audio is opt-in and local assets are required |
 
 This release uses Python package version `1.0.1b1` (PEP 440); the GUI displays
-`1.0.1-beta`. The VTT now supports per-player turns, profile-local character
-sheets, map-visible NPCs, structured Storyteller responses, and token-protected
-LAN browser clients. The release also fixes LLM-route prompt formatting and
-final-result retrieval from closed output chains. LAN uses unencrypted HTTP
+`1.0.1-beta`. The VTT now builds validated maps with the configured AI route,
+generates campaign history and character backstories, records a session
+chronicle, and supports active GM rulings with host-rolled checks and validated
+world updates. LAN browser clients display the same illustrated map and use
+token-protected sessions. The release also fixes LLM-route prompt formatting
+and final-result retrieval from closed output chains. LAN uses unencrypted HTTP
 and is intended only for trusted local networks. See the
 [VTT guide](./docs/vtt.md) before hosting.
 
@@ -190,27 +192,34 @@ prompts are sent through the configured model route; do not include secrets.
 The **VTT** tab is a playable tabletop scene with hot-seat play and an
 optional token-protected LAN browser host. It provides:
 
-- Generate repeatable procedural maps from a seed; map dimensions are
-  configured under `vtt` in `config/framework.yaml`.
+- Build original campaign maps, initial NPCs, objective, and campaign history
+  through the configured AI route. The host validates terrain, bounds, and
+  reachability before play; map dimensions are configured under `vtt` in
+  `config/framework.yaml`.
+- View the same AI-authored layout as an interactive terrain grid or as an
+  illustrated SVG map generated locally from its validated map data.
 - Click reachable tiles to move the player token. Terrain has movement costs;
   water and ridges are impassable. End turns to replenish movement points.
 - Find and investigate hidden locations, track each player's grid position, and
   reach the exit objective.
 - Create profile-local characters with original point-buy attributes and
   skills; make 3d6 roll-under skill checks.
-- Place map-visible NPCs and ask them for structured replies. Request original
-  scene continuations from the Storyteller GM and concise AI-generated rules
-  summaries.
+- Place map-visible NPCs and ask them for structured replies. The active AI GM
+  interprets player actions, requests and resolves local 3d6 checks, records
+  rulings, and may reveal locations, add or move NPCs, or update the objective.
+- Generate campaign history and character backstories; the History tab records
+  map, movement, check, discovery, and GM events in the session chronicle.
 - Host LAN browser players from the GUI; the host handles all AI requests.
 - Save the current map and conversation state as view-only HTML snapshots in
   `~/.assistuff/visual-artifacts/`.
 
 The point-buy helper and 3d6 mechanic are original and are not a full or
-official GURPS rules engine. NPC, Storyteller, and rules summaries use the
-configured assistant route, may be sent to a remote provider, and are not
-authoritative. LAN transport uses unencrypted HTTP and is intended only for a
-trusted local network. Live campaign state is not persisted; character sheets
-are saved to the active profile. VTT acceptance tests remain user-owned. See
+official GURPS rules engine. Map, campaign, character, and GM generations use
+the configured assistant route, may be sent to a remote provider, and are not
+authoritative rule interpretations. LAN transport uses unencrypted HTTP and is
+intended only for a trusted local network. Live campaign state and chronicle
+are not restored across app restarts; character sheets are saved to the active
+profile. VTT acceptance tests remain user-owned. See
 [docs/visual-output.md](./docs/visual-output.md) and [docs/vtt.md](./docs/vtt.md).
 
 ## Skills, plugins, and MCP

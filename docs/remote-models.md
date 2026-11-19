@@ -41,8 +41,13 @@ runtime:
 
 Set the key in the process environment before launching AssiStuff, for example
 `export ASSISTUFF_REMOTE_API_KEY=...`. Only the environment variable's name is
-stored in configuration. Do not put credentials in manifests, screenshots,
-logs, or commits. HTTP endpoints are rejected unless
+stored in configuration. The Settings panel can also add a model under
+**OpenAI-compatible API**; its key is stored in the operating system credential
+store, while endpoint and model metadata are saved to
+`~/.assistuff/config/apis.yaml`. Restart AssiStuff after saving to load the
+model. Existing environment-variable configuration remains supported, and
+environment variables take precedence over the stored key. Do not put
+credentials in manifests, screenshots, logs, or commits. HTTP endpoints are rejected unless
 `allow_insecure_http: true` is deliberately added to that endpoint profile;
 even then, only loopback/private IPs and local hostnames are accepted.
 
@@ -58,8 +63,10 @@ not shown because they may contain sensitive provider data.
 
 The adapter supports text and JSON-object responses and logs provider/model
 identity plus token counts when supplied by the endpoint. Streaming, remote
-tool calls, schema-constrained JSON, OS credential-store integration, and
-provider health indicators are not yet implemented. Provider quotas, retention,
-terms, and cost are the user's responsibility.
+tool calls, schema-constrained JSON, and provider health indicators are not yet
+implemented. The GUI saves model metadata but does not make a provider request
+to validate the key; the first routed request reports authentication or
+endpoint errors. Provider quotas, retention, terms, and cost are the user's
+responsibility.
 
 See [ADR-0015](./adr/ADR-0015-remote-model-api-providers.md).

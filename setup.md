@@ -82,13 +82,19 @@ viewer blocks network requests, external navigation, downloads, and persistent
 browser storage, but generated scripts still run locally. Generation uses the
 configured model route; do not include secrets in artifact prompts.
 
-The **VTT** tab provides seeded maps, hot-seat turns, profile-local character
-point-buy, map NPCs, an AI Storyteller GM, and local 3d6 skill checks. In the
-**Multiplayer** tab, start a LAN host and share its URL and join code with
-players on a trusted network. LAN uses unencrypted HTTP; never expose it to
-the public internet. The host handles all AI requests. Configure map size
-under `vtt` in `config/framework.yaml`. See [docs/vtt.md](./docs/vtt.md) for
-full play and security instructions.
+The **VTT** tab uses the configured assistant route to build a playable map,
+initial NPCs, campaign history, and objective. View it as a playable tile map
+or an illustrated map. The active AI GM interprets declared actions, calls for
+local 3d6 checks when needed, narrates their results, and can apply validated
+world updates. The History tab generates campaign history, keeps a session
+chronicle, and can create an AI recap; character backstories can be generated
+and saved with profile-local character sheets. In the **Multiplayer** tab,
+start a LAN host and share its URL and join code with players on a trusted
+network. LAN uses
+unencrypted HTTP; never expose it to the public internet. The host handles all
+AI requests. Configure map size under `vtt` in `config/framework.yaml`. Map and
+story generation use the selected local or remote model route; see
+[docs/vtt.md](./docs/vtt.md) for full play and security instructions.
 
 ## 4. Create an account
 

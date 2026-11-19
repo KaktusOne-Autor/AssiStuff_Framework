@@ -13,6 +13,7 @@ from assistuff.config.schemas import (
     ModelManifest,
     PersonalityConfig,
     PupcConfig,
+    RemoteEndpointConfig,
     RuntimeConfigBundle,
     SkillManifest,
 )
@@ -74,6 +75,33 @@ def load_runtime_config() -> RuntimeConfigBundle:
 
     framework = FrameworkConfig.model_validate(framework_data)
     models = _load_manifests(config_dir / "models", kind="model")
+    user_api_path = get_user_root() / "config" / "apis.yaml"
+    user_api_data = _read_yaml(user_api_path)
+    if user_api_data:
+        unexpected = set(user_api_data) - {"endpoints", "models"}
+        if unexpected:
+            raise ConfigError(
+                f"unsupported fields in {user_api_path}: {', '.join(sorted(unexpected))}"
+            )
+        endpoints_data = user_api_data.get("endpoints", {})
+        models_data = user_api_data.get("models", {})
+        if not isinstance(endpoints_data, dict) or not isinstance(models_data, dict):
+            raise ConfigError(f"endpoints and models in {user_api_path} must be mappings")
+        for profile, endpoint_data in endpoints_data.items():
+            if profile in framework.runtime.remote_endpoints:
+                raise ConfigError(f"duplicate remote endpoint profile {profile!r}")
+            framework.runtime.remote_endpoints[profile] = (
+                RemoteEndpointConfig.model_validate(endpoint_data)
+            )
+        for model_id, model_data in models_data.items():
+            if model_id in models:
+                raise ConfigError(f"duplicate model id {model_id!r}")
+            model = ModelManifest.model_validate(model_data)
+            if model.id != model_id or model.runtime.backend != "remote_api":
+                raise ConfigError(
+                    f"user API entry {model_id!r} must be a remote model with a matching id"
+                )
+            models[model_id] = model
     for model in models.values():
         if model.runtime.backend != "remote_api":
             continue

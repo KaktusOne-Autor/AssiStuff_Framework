@@ -6,19 +6,27 @@ source code, assets, or proprietary implementation details.
 
 ## Start a game
 
-1. Open **VTT**. The map is generated locally from a repeatable seed.
-2. Read the terrain legend below the board. Click a highlighted tile to move
+1. Open **VTT** and describe the kind of setting, mystery, or adventure you
+   want. Select **Build campaign map with AI**. The configured assistant route
+   creates a map, campaign history, objective, points of interest, and initial
+   NPCs. Invalid maps are rejected; start, exit, locations, and NPCs must be
+   reachable on walkable terrain.
+2. Switch between **Tabletop** for interactive movement and **Illustrated
+   map** for a locally rendered, vector-style overview of the same AI-authored
+   layout. The map's terrain, points, and actors come from the AI; AssiStuff
+   draws the illustration and enforces the grid rules.
+3. Read the terrain legend below the board. Click a highlighted tile to move
    the active player token. Row letters and column numbers identify positions.
-3. Each turn gives the active player **4 movement points**. Open ground and
+4. Each turn gives the active player **4 movement points**. Open ground and
    road cost 1 point per tile; forest costs 2. Water and ridges cannot be
    crossed. The server-computed reachable tiles show the movement cost.
-4. Select **End turn** to move to the next player and refill that player's
+5. Select **End turn** to move to the next player and refill that player's
    movement points. **Locate player** selects the active token.
-5. `?` markers are undiscovered locations. Move the active player onto one and
+6. `?` markers are undiscovered locations. Move the active player onto one and
    select **Investigate location** to reveal its description.
-6. Reach the orange **E** marker to complete the scene objective. Stop the LAN
+7. Reach the orange **E** marker to complete the scene objective. Stop the LAN
    host before generating another map.
-7. **Save scene snapshot** stores the visible scene as an HTML artifact.
+8. **Save scene snapshot** stores the visible scene as an HTML artifact.
    Snapshots are view-only; live map, turn, NPC, and location state is not
    restored when the app restarts.
 
@@ -28,9 +36,9 @@ tiles reachable this turn. **Map & dice** includes a local 3d6 helper.
 ## Characters and hot-seat play
 
 Use the **Character** tab to create a character, assign an optional origin,
-archetype, level, experience, attributes, and skills, then select **Save
-character to this profile**. Character sheets are stored under the active
-profile's VTT directory.
+archetype, level, experience, attributes, and skills, and optionally generate
+an original backstory with AI. Select **Save character to this profile** to
+store the sheet and backstory under the active profile's VTT directory.
 
 The point-buy system is original and intentionally small:
 
@@ -58,10 +66,10 @@ game master and the table's chosen rules.
 3. Share one displayed host URL and the join code with each player over a
    trusted channel. Players open the URL in a browser and enter their player
    name, character name, and attributes to join.
-4. The browser board shows current players, NPCs, locations, and turns. The
-   active player can move to server-designated reachable tiles, investigate,
-   roll 3d6, speak with an NPC, and ask the Storyteller GM. **Leave game**
-   removes that player's token and session.
+4. The browser board shows the illustrated AI-built map, current players,
+   NPCs, locations, and turns. The active player can move to server-designated
+   reachable tiles, investigate, roll 3d6, speak with an NPC, and ask the
+   Storyteller GM. **Leave game** removes that player's token and session.
 5. Select **Stop LAN host** when the session is over.
 
 The host runs all assistant requests; browser clients do not need their own
@@ -71,19 +79,33 @@ to the public internet. Regenerating a map requires stopping the host first.
 Joined players and in-memory scene state are not persisted as a resumable
 campaign.
 
-## NPCs, Storyteller, and privacy
+## Active AI game master and campaign history
 
-Use the **NPC** tab to place an original NPC on a walkable map tile and ask
-them a question. Use **Storyteller GM** to request an original scene
-continuation and suggested choices based on the current party and map. The
-client and GUI validate structured NPC/Storyteller JSON before displaying it.
-AI narration does not directly mutate game state.
+The map generator creates campaign premise, world history, timeline, current
+conflict, initial NPCs, and an objective. Use the **History** tab to generate
+or expand the campaign history, generate an AI recap from recent session
+events, and review the full in-session chronicle. Map generation also creates
+chronicle entries for later play. Character backstories can be generated from
+the **Character** tab and saved with the character sheet.
 
-NPC, Storyteller, and rules-help requests use the configured assistant
-dispatcher. They may go to a remote provider if the assistant is configured
-that way; avoid sending private campaign material unless the provider is
-trusted. The HTML artifact viewer has no host bridge and cannot call models,
-memory, or dice services.
+In **Storyteller GM**, declare what the active character attempts. The GM uses
+the current campaign history, map, party, discovered locations, NPCs, last
+roll, and recent chronicle. It may call for a skill check; AssiStuff calculates
+the target and rolls 3d6 locally, then asks the GM to adjudicate that exact
+result. The GM can propose location reveals, NPC additions/movement, and
+objective updates. These changes are schema- and state-validated by the host
+before they are applied. All movement and dice remain governed by the local
+game engine; the GM cannot directly edit arbitrary state.
+
+Use the **NPC** tab to place an NPC on a walkable tile and start a separate
+conversation. NPC, GM, map, history, backstory, and rules-help requests use the
+configured assistant route. Prompts may be sent to a remote provider if remote
+routing is configured; avoid including private campaign or character details
+unless that provider is trusted. The HTML artifact viewer has no host bridge
+and cannot call models, memory, or dice services.
+
+Campaign history and the session chronicle are in-memory and appear in saved
+HTML snapshots, but the live scene is not restored when the app restarts.
 
 ## Configuration
 

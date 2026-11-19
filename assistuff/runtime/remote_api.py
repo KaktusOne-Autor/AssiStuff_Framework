@@ -8,7 +8,10 @@ import os
 from typing import Any
 
 import httpx
+import keyring
+from keyring.errors import KeyringError
 
+from assistuff.config.api_connections import KEYRING_SERVICE
 from assistuff.config.schemas import RemoteEndpointConfig
 
 logger = logging.getLogger(__name__)
@@ -51,8 +54,17 @@ class OpenAICompatibleClient:
     ) -> str:
         api_key = os.environ.get(self.config.api_key_env, "").strip()
         if not api_key:
+            try:
+                api_key = (
+                    keyring.get_password(KEYRING_SERVICE, self.config.api_key_env) or ""
+                ).strip()
+            except KeyringError as exc:
+                raise RemoteApiError(
+                    "the operating system credential store could not provide the API key"
+                ) from exc
+        if not api_key:
             raise RemoteApiError(
-                f"environment variable {self.config.api_key_env} is not set"
+                f"API key is not configured for {self.config.api_key_env}"
             )
 
         messages: list[dict[str, str]] = []
