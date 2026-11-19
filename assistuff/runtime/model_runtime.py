@@ -7,6 +7,7 @@ from pathlib import Path
 
 from assistuff.config.schemas import ModelManifest, RuntimeConfigBundle
 from assistuff.runtime.ollama import OllamaClient
+from assistuff.runtime.remote_api import OpenAICompatibleClient, RemoteApiError
 
 logger = logging.getLogger(__name__)
 
@@ -19,10 +20,13 @@ class ModelRuntime:
         manifest: ModelManifest,
         client: OllamaClient,
         config: RuntimeConfigBundle,
+        *,
+        remote_client: OpenAICompatibleClient | None = None,
     ) -> None:
         self.manifest = manifest
         self.client = client
         self.config = config
+        self.remote_client = remote_client
 
     # ------------------------------------------------------------------
     # Prompt assembly
@@ -88,6 +92,27 @@ class ModelRuntime:
 
     async def generate(self, prompt: str, *, system: str | None = None) -> str:
         system_prompt = system if system is not None else self.build_system_prompt()
+        if self.manifest.runtime.backend == "remote_api":
+            if self.remote_client is None:
+                raise RuntimeError(
+                    f"remote API profile is unavailable for model {self.manifest.id}"
+                )
+            options: dict[str, object] = {
+                "temperature": self.manifest.runtime.temperature,
+                "max_tokens": self.manifest.runtime.max_tokens,
+            }
+            options.update(self.manifest.runtime.options)
+            return await self.remote_client.generate(
+                model=self.manifest.runtime.tag,
+                prompt=prompt,
+                system=system_prompt or None,
+                format=(
+                    "json"
+                    if self.manifest.runtime.format == "json"
+                    else None
+                ),
+                options=options,
+            )
         return await self.client.generate(
             model=self.manifest.runtime.tag,
             prompt=prompt,
@@ -105,6 +130,26 @@ class ModelRuntime:
         system: str | None = None,
     ) -> dict:
         system_prompt = system if system is not None else self.build_system_prompt()
+        if self.manifest.runtime.backend == "remote_api":
+            if self.remote_client is None:
+                raise RuntimeError(
+                    f"remote API profile is unavailable for model {self.manifest.id}"
+                )
+            if schema is not None:
+                raise RemoteApiError(
+                    "schema-constrained JSON is not supported by this provider adapter"
+                )
+            options: dict[str, object] = {
+                "temperature": self.manifest.runtime.temperature,
+                "max_tokens": self.manifest.runtime.max_tokens,
+            }
+            options.update(self.manifest.runtime.options)
+            return await self.remote_client.generate_json(
+                model=self.manifest.runtime.tag,
+                prompt=prompt,
+                system=system_prompt or None,
+                options=options,
+            )
         return await self.client.generate_json(
             model=self.manifest.runtime.tag,
             prompt=prompt,

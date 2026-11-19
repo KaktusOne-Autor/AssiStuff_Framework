@@ -1,204 +1,260 @@
 # AssiStuff Framework
 
-AssiStuff is a local-first Python assistant framework built around Ollama,
-declarative model and skill manifests, a capability bus, and profile-based
-memory. It includes a PyQt desktop application and retains the historical
-`.nrdpkg` model package format.
+**Release: 1.0.1-beta — VTT multiplayer and framework hardening**
 
-> **Development status:** AssiStuff is under active development. CLI skills,
-> local model configuration, basic chat dispatch, package tooling, and memory
-> storage are present. Voice integration and several GUI/memory integrations
-> are not complete; see [Current limitations](#current-limitations).
+AssiStuff is a local-first assistant framework with a Python CLI, a desktop
+GUI, configurable model and skill manifests, profile-scoped memory, and an
+HTML Visual Output surface. Run local models through Ollama or explicitly
+configure an OpenAI-compatible remote endpoint.
 
-AssiStuff coexists with Noredur. The `src/noredur/` tree is retained unchanged,
-and AssiStuff does not depend on it. See [README-assistuff.md](./README-assistuff.md)
-and the [architecture decision records](#architecture-decisions).
+This is a beta: interfaces and configuration may change. Some planned
+integrations are incomplete; the feature status and limitations below describe
+what this release actually provides.
 
-## Requirements
+AssiStuff coexists with Noredur. The historical `.nrdpkg` package name is
+retained, and `src/noredur/` remains a separate reference tree. See
+[README-assistuff.md](./README-assistuff.md).
+
+## What is in 1.0.1-beta
+
+| Area | Beta status |
+| --- | --- |
+| CLI and desktop GUI | Available; GUI requires the `gui` extra |
+| Local models | Ollama-backed routing, hot-plug and background residency |
+| Remote models | OpenAI-compatible chat-completions profiles |
+| Memory | Working, SQLite short-term, Markdown/FTS long-term, and dossier layers |
+| Accounts | Local password accounts, profile binding, and PUPC levels |
+| Visual Output | Isolated HTML artifact storage and viewer |
+| Virtual Tabletop | Hot-seat and LAN play, point-buy characters, NPCs, Storyteller GM |
+| Skills and tools | Built-ins, instruction-only imports, and MCP stdio tools |
+| Model packages | `.nrdpkg` build, verify, sign, install, list, and uninstall |
+| Voice | Local capture, whisper.cpp, Vosk, Piper, and wake-word wiring; GUI audio is opt-in and local assets are required |
+
+This release uses Python package version `1.0.1b1` (PEP 440); the GUI displays
+`1.0.1-beta`. The VTT now supports per-player turns, profile-local character
+sheets, map-visible NPCs, structured Storyteller responses, and token-protected
+LAN browser clients. The release also fixes LLM-route prompt formatting and
+final-result retrieval from closed output chains. LAN uses unencrypted HTTP
+and is intended only for trusted local networks. See the
+[VTT guide](./docs/vtt.md) before hosting.
+
+## Quick start
+
+### Requirements
 
 - Python 3.11–3.13
-- [Ollama](https://ollama.com/) for model-backed requests
-- macOS/Linux with SQLite FTS5 for long-term memory search
-- Optional: GUI, package, and voice dependencies installed via extras below
+- macOS or Linux
+- Ollama for local model-backed requests
+- Optional GUI dependencies for the desktop app
 
-## Install
-
-From the project directory, create a Python 3.11–3.13 environment and install
-the desired extras:
+Create an environment and install the GUI:
 
 ```bash
+git clone https://github.com/KaktusOne-Autor/AssiStuff_Frmwrk.git
+cd AssiStuff_Frmwrk
 python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e '.[dev,gui,voice,pack]'
+python -m pip install -e '.[gui]'
 ```
 
-Start Ollama in a separate terminal if it is not already running:
+For packaging and signing tools, install the `pack` extra. For development
+tests and linting, install `dev`. The `voice` extra installs Python audio
+dependencies; whisper.cpp, Vosk models, Piper, and voice assets are separate.
+
+### Check and run
+
+Start Ollama if it is not already running. Inspect the configured model tags
+in `config/framework.yaml` and `config/models/*.yaml`, and pull the tags you
+intend to use:
 
 ```bash
 ollama serve
+ollama list
+ollama pull <configured-model-tag>
+./bin/assistuff --check
 ```
 
-The model tags used by this checkout are configured in `config/models/*.yaml`
-and `config/framework.yaml`. Pull the tags you intend to use with `ollama pull
-<tag>`, then check configuration and run the calculator smoke test:
+The calculator skill does not need a model:
 
 ```bash
-ollama list
-./bin/assistuff --check
 ./bin/assistuff --skill calculator --skill-input "2 + 2"
 ```
 
-The calculator should print `4`. Run `./bin/assistuff --ask "2 + 2"` to test
-model-backed routing and chat; all model tags named in the utility-role
-configuration need to be installed for the full pipeline.
+It should return `4`. For model-backed chat, install the model tags referenced
+by the configured utility roles, then run:
 
-The `bin/assistuff` and `bin/assistuff-pack` wrappers use `.venv/bin/python`
-when present, otherwise `python3` from `PATH`.
+```bash
+./bin/assistuff --ask "What is 2 + 2?"
+```
 
-## Start the desktop app
+`--check` reports a warning if Ollama is unavailable; model-backed requests
+will need a reachable configured provider.
 
-Install the `gui` extra, then launch the GUI from the project directory:
+## Desktop application
+
+Launch from the repository directory:
 
 ```bash
 ./bin/assistuff
-# macOS app bundle:
-open AssiStuff.app
 ```
 
-Keep `AssiStuff.app` alongside the project files; the bundle locates the
-project relative to itself. Logs are written to
-`~/.assistuff/logs/gui-launch.log`. Use `./bin/assistuff --tray-only` to start
-the tray without the main window.
+On macOS, the included app bundle can also be opened with `open AssiStuff.app`.
+The GUI contains Chat, Models, Tasks, Memory, Visual Output, VTT, Skills,
+Graph, Trace, Settings, and Plugins tabs. The telemetry dock is hidden by
+default; toggle it from **View → Toggle telemetry dock** (`Ctrl+T`). **View →
+Reload panels** (`Ctrl+R`) reloads panels that support it.
 
-The application has Chat, Models, Tasks, Memory, Skills, Trace, Settings, and
-Plugins tabs. The Models tab displays configured manifests and supports
-choosing an SVG avatar; selected files are copied to `assets/avatars/` and the
-model manifest is updated. The telemetry dock is hidden by default and can be
-toggled from **View → Toggle telemetry dock** (`Ctrl+T`). **View → Reload
-panels** (`Ctrl+R`) calls `reload()` on panels that provide it.
+The **Models** tab lists configured manifests and lets you choose or clear an
+SVG avatar; selected files are copied into `assets/avatars/` and the manifest
+is updated.
 
-The planned Mermaid-like model/skill graph editor and selectable Hot-plug /
-Selected-for-background Ollama residency modes are specified in
-[ADR-0014](./docs/adr/ADR-0014-graph-configuration-and-ollama-residency-modes.md);
-they are not implemented yet.
+The **Graph** tab shows configured model/skill capability connections and
+configures Ollama residency:
 
-## CLI
+- **Hot-plug** loads models on demand and observes `runtime.residency.max_loaded`.
+- **Selected for background** loads selected models when AssiStuff starts.
+- Pinned models are warmed at startup and protected from eviction in either
+  mode.
 
-Run `./bin/assistuff --help` for all options. Common commands:
+Graph permission and residency edits require a level-5 administrator when
+accounts exist. Restart AssiStuff to apply changes to active registrations.
+
+The **Tasks** tab asks the planner for a dependency-validated plan. Review the
+steps, then explicitly select **Run** to execute them through normal request
+routing. Plans are currently in-memory and cannot be resumed after exit.
+
+## Accounts and PUPC
+
+The first local account becomes the level-5 administrator. Passwords are
+entered through a hidden prompt:
 
 ```bash
-./bin/assistuff --check
-./bin/assistuff --list-models
-./bin/assistuff --list-skills
-./bin/assistuff --prompt "Explain this briefly" --model qwen2-5-7b
-./bin/assistuff --ask "What is 2 + 2?"
-./bin/assistuff --ask "What is 2 + 2?" --stream
-./bin/assistuff --skill calculator --skill-input "2 + 2"
-./bin/assistuff --bus-test
-./bin/assistuff --unload qwen2.5:7b
-./bin/assistuff --install-pkg dist/example-1.0.0.nrdpkg
+./bin/assistuff --account-create owner
+./bin/assistuff --account-create player --admin-account owner --profile player
+./bin/assistuff --account-list --admin-account owner
 ```
 
-`--model` accepts a configured model ID or runtime tag. `--profile ID` selects
-the profile for supported operations; `--debug` enables debug logging.
-`--headless` suppresses GUI launch when no command is selected.
+The GUI prompts for sign-in when accounts exist. CLI requests use
+`--account USERNAME`; account management uses `--admin-account USERNAME`.
+Unauthenticated requests receive level-0 guest access and use the isolated
+`guest` profile. Model unloading and `.nrdpkg` installation/removal also
+require an administrator when accounts are configured.
 
-### Memory commands
+The registry is stored under `~/.assistuff/accounts.db` (or the configured
+`ASSISTUFF_HOME`). Account setup, permissions, and limitations are documented
+in [docs/account-registry.md](./docs/account-registry.md).
 
-Memory is profile-scoped beneath `~/.assistuff/profiles/` (or
-`$ASSISTUFF_HOME/profiles/` when overriding the user data root):
+## Memory
+
+Memory is profile-scoped beneath `~/.assistuff/profiles/`. Common operations:
 
 ```bash
 ./bin/assistuff --memory tags
-./bin/assistuff --list-tags default
 ./bin/assistuff --memory append "Working on AssiStuff" --tags "#project,#work"
 ./bin/assistuff --memory search "AssiStuff"
+./bin/assistuff --memory audit-tags
 ./bin/assistuff --memory reindex
+./bin/assistuff --memory reindex --force
 ```
 
-The memory implementation has working state in-process, short-term messages
-and todos in SQLite, long-term Markdown notes with FTS5/time indexes, and a
-structured dossier. Turns record the user/assistant exchange to short-term
-memory; generated summaries may be appended to long-term memory. The `recall`
-skill can search long-term memory when explicitly invoked:
+The framework has in-process working memory, SQLite short-term messages and
+todos, Markdown long-term notes with FTS5/time indexes, and a structured
+dossier. Models receive memory context only according to their manifests:
+`memory.reads` controls working/recent/todo/long-term context, while
+`memory.dossier_access` controls dossier access. Remove a layer from a
+manifest to withhold it. Model memory writes and `memory.writes` enforcement
+are not implemented.
+
+Long-term notes use the profile's Markdown file and FTS5 index. Tags can be
+listed, searched, audited, and reindexed; forced reindex is available with
+`--force`. Each note is limited to the configured maximum number of tags.
+
+The `recall` skill searches long-term memory when invoked:
 
 ```bash
 ./bin/assistuff --skill recall --skill-input "AssiStuff"
 ```
 
-**Models do not currently read memory automatically.** The model adapter sends
-the query and model prompt to Ollama; it does not add short-term history,
-retrieved notes, or dossier context. Although manifests declare `memory.reads`
-and `dossier_access`, those declarations are not currently wired into runtime
-prompt construction. Model manifests also have `interop.can_call: []`, so a
-model cannot call the `recall` skill through the capability bus by default.
-Skills and plugins receive a `SkillContext` containing the profile's memory
-store, so a memory-aware skill can read or write it directly.
+See the [memory and retrieval ADRs](#architecture-decisions) for layer and
+tag behavior.
 
-Tags are stored in the long-term memory Markdown header and can be added
-dynamically by the memory/tag code. Vector retrieval, fuzzy tag matching,
-forced reindex, tag auditing, compaction, planner-connected unknown-tag retry,
-and in-panel tag editing are not complete.
+## Visual Output and VTT
 
-## Configuration
+The **Visual Output** tab generates, saves, lists, and previews self-contained
+HTML artifacts. Scripts can run locally for interactivity, but the viewer
+blocks network requests, external navigation, downloads, persistent browser
+storage, and Qt host access. Treat generated HTML as untrusted. Artifact
+prompts are sent through the configured model route; do not include secrets.
 
-Configuration is YAML-based:
+The **VTT** tab is a playable tabletop scene with hot-seat play and an
+optional token-protected LAN browser host. It provides:
 
-- `config/framework.yaml` — Ollama, utility roles, voice, memory, profiles,
-  tasks, access, UI, telemetry, hardware, and output-chain settings.
-- `config/models/*.yaml` — model tag, role, capabilities, routing, access,
-  interop, memory declarations, provenance, prompt paths, and avatar.
-- `config/skills/*.yaml` — skill capability and implementation manifests.
-- `config/personalities/*.yaml` — personality prompt paths.
-- `config/access/pupc.yaml` — six access levels.
-- `prompts/roles/` and `prompts/identities/` — model prompts and identities.
+- Generate repeatable procedural maps from a seed; map dimensions are
+  configured under `vtt` in `config/framework.yaml`.
+- Click reachable tiles to move the player token. Terrain has movement costs;
+  water and ridges are impassable. End turns to replenish movement points.
+- Find and investigate hidden locations, track each player's grid position, and
+  reach the exit objective.
+- Create profile-local characters with original point-buy attributes and
+  skills; make 3d6 roll-under skill checks.
+- Place map-visible NPCs and ask them for structured replies. Request original
+  scene continuations from the Storyteller GM and concise AI-generated rules
+  summaries.
+- Host LAN browser players from the GUI; the host handles all AI requests.
+- Save the current map and conversation state as view-only HTML snapshots in
+  `~/.assistuff/visual-artifacts/`.
 
-Utility roles (`router`, `planner`, `mpa`, and optional `compiler`) are set in
-`runtime.utility_models` in `config/framework.yaml`. The default user root is
-`~/.assistuff`; override it with `ASSISTUFF_HOME`.
+The point-buy helper and 3d6 mechanic are original and are not a full or
+official GURPS rules engine. NPC, Storyteller, and rules summaries use the
+configured assistant route, may be sent to a remote provider, and are not
+authoritative. LAN transport uses unencrypted HTTP and is intended only for a
+trusted local network. Live campaign state is not persisted; character sheets
+are saved to the active profile. VTT acceptance tests remain user-owned. See
+[docs/visual-output.md](./docs/visual-output.md) and [docs/vtt.md](./docs/vtt.md).
 
-## Add a plugin
+## Skills, plugins, and MCP
 
-A plugin is an explicitly enabled `<id>.py` module and `<id>.json` manifest in
-the configured plugin directory (default `plugins/`). Create
-`plugins/greeting.py`:
-
-```python
-def run(value, context):
-    return f"Hello, {value.strip() or context.profile}!"
-```
-
-Create `plugins/greeting.json`:
-
-```json
-{
-  "skill": "greeting",
-  "permission": "greeting"
-}
-```
-
-Enable the plugin in `config/framework.yaml`:
-
-```yaml
-tasks:
-  plugin_dir: plugins
-  enabled_plugins: [greeting]
-```
-
-Restart the application and invoke it:
+Built-in skills can be listed and invoked from the CLI:
 
 ```bash
-./bin/assistuff --skill greeting --skill-input "there"
+./bin/assistuff --list-skills
+./bin/assistuff --skill calculator --skill-input "2 + 2"
 ```
 
-Plugins execute Python code in the application process and have the
-permissions of the running user. Enable only code you trust. A plugin's
-`run(value, context)` must return a string.
+Portable imports currently support instruction-only packages with a
+`manifest.yaml`, `SKILL.md`, and optional JSON Schemas. Imports start disabled;
+executable imported tools are rejected and declared permissions do not grant
+host access:
 
-## Build and install `.nrdpkg` packages
+```bash
+./bin/assistuff --skill-install ./skills/my-helper --admin-account owner
+./bin/assistuff --skill-enable my-helper --admin-account owner
+./bin/assistuff --list-skills
+```
 
-Install the `pack` extra, scaffold a package, and edit its manifest:
+Run the MCP stdio server with `./bin/assistuff --mcp`. It exposes registered
+skill capabilities through `initialize`, `tools/list`, and `tools/call`, with
+capability-bus and PUPC checks.
+
+Python plugins are a separate legacy mechanism. Enabled plugins execute
+in-process with the application's permissions and are **not sandboxed**.
+Only enable code you trust. See [docs/agent-skills.md](./docs/agent-skills.md)
+and [docs/agent-interoperability.md](./docs/agent-interoperability.md).
+
+## Remote model APIs
+
+Remote models use explicitly configured OpenAI-compatible Chat Completions
+profiles; there is no silent fallback from a local model. Configure an
+endpoint and model manifest, then provide the API key through the named
+environment variable. Never commit credentials. Remote requests disclose
+prompts and attached context to the configured provider. Streaming, remote
+tool-calls, and provider-specific features are not included. Setup details are
+in [docs/remote-models.md](./docs/remote-models.md).
+
+## Build `.nrdpkg` model packages
+
+Install the pack tools and scaffold a package:
 
 ```bash
 python -m pip install -e '.[pack]'
@@ -206,86 +262,87 @@ python -m pip install -e '.[pack]'
   --id example --name Example --version 1.0.0
 ```
 
-Set accurate license, provenance, redistribution, runtime, and capability
-metadata in `packages/example/manifest.yaml`. Add compatible, redistributable
-GGUF weights to `packages/example/weights/`, then lint, build, and verify:
+Add redistributable GGUF weights, complete the manifest's license/provenance
+metadata, then lint, build, and verify:
 
 ```bash
 ./bin/assistuff-pack lint packages/example
-./bin/assistuff-pack build packages/example -o dist
-./bin/assistuff-pack verify dist/example-1.0.0.nrdpkg
-```
-
-Packages can be signed during build with an Ed25519 key:
-
-```bash
 ./bin/assistuff-pack keys generate --name dev
 ./bin/assistuff-pack build packages/example -o dist \
   --sign-key ~/.assistuff/keys/dev.key
 ./bin/assistuff-pack verify dist/example-1.0.0.nrdpkg \
   --public-key ~/.assistuff/keys/dev.pub
-./bin/assistuff-pack install dist/example-1.0.0.nrdpkg \
-  --public-key ~/.assistuff/keys/dev.pub
 ```
 
-The package CLI also supports `list`, `uninstall`, `export`, and `keys list`;
-use `./bin/assistuff-pack --help` for syntax. Unsigned development packages
-require `--allow-unsigned` when installed. Protect private signing keys and
-verify packages with a trusted public key.
+Install with a trusted public key:
 
-Weight source forms are `file:<path>`, `hf:<repo_id>`, and `ollama:<tag>`.
-**Known limitation:** the Ollama resolver copies Ollama's internal blobs, but
-the installer currently expects a `.gguf` weight file when creating the
-Ollama model. Use GGUF weights for package installation. `assistuff-pack sign`
-is currently a placeholder; sign while building with `--sign-key`. There is no
-publish command yet. Follow upstream licenses and redistribution requirements.
+```bash
+./bin/assistuff-pack install dist/example-1.0.0.nrdpkg \
+  --public-key ~/.assistuff/keys/dev.pub --admin-account owner
+```
 
-## Capability bus and output chain
+The pack CLI also supports `list`, `uninstall`, `export`, `sign`, and key
+management. Use `./bin/assistuff-pack --help` for complete syntax. Unsigned
+development packages require `--allow-unsigned`. The Ollama resolver currently
+copies internal blobs while installation expects a GGUF weight file. Package
+publishing, bundled verification keys, and a key-rotation workflow are not
+available. Follow upstream licensing and redistribution terms; see
+the package ADRs in [Architecture decisions](#architecture-decisions).
 
-Models and skills register as capabilities. The bus routes capability calls
-and applies hop, caller, and access-level restrictions. `Trace` records
-execution, and `OutputChain` publishes events to subscribers such as GUI and
-logging emitters.
+## Configuration and data
 
-`interop.can_call` controls which capabilities a model may call. Calls to
-memory-aware skills are possible only when explicitly allowed by configuration
-and when those skills are registered. Current model manifests have empty
-`can_call` lists, so models cannot call `recall` automatically.
+- `config/framework.yaml` — runtime, utility roles, memory, access, UI,
+  residency, voice settings, and VTT map dimensions.
+- `config/models/*.yaml` — model backend/tag, routing, access, memory, and
+  capability declarations.
+- `config/skills/*.yaml` — built-in skill manifests.
+- `config/personalities/*.yaml` — personality prompts.
+- `config/access/pupc.yaml` — six PUPC levels.
 
-## Voice status
+The default user data directory is `~/.assistuff/`; set `ASSISTUFF_HOME` to
+use another location. Back up profiles and account data before beta upgrades.
+Local model prompts remain local unless you explicitly configure a remote
+provider. Review each provider's privacy, retention, quota, and cost policies.
 
-`config/framework.yaml` includes settings for whisper.cpp STT, Vosk speaker
-authentication and wake-word detection, and Piper TTS. Install the Python
-dependencies with `python -m pip install -e '.[voice]'` and configure the
-binary/model paths for local voice engines.
+## Beta limitations
 
-The voice adapters, factory, skill manifests, capability registration, and
-Chat microphone integration are not implemented yet. The configured voice
-settings and optional dependencies alone do not provide transcription,
-authentication, wake-word detection, or speech output. The CLI's `--audio`
-and `--mic` options are also not connected to a voice pipeline.
+- Voice requires local executables, models, audio dependencies, and microphone
+  permission. GUI controls are disabled by default; wake listening is opt-in.
+  Speaker authentication requires profile enrollment; see
+  [docs/voice.md](./docs/voice.md).
+- Portable skills do not execute tools. Full OpenClaw compatibility, package
+  export, and sandboxed third-party code are not implemented.
+- Remote tool calls, streaming, and providers beyond the OpenAI-compatible
+  chat-completions profile are not supported.
+- Accounts have no MFA, password recovery, rate limiting, or GUI management.
+- Visual Output has no host capability bridge or artifact import/export.
+- VTT is not a complete tabletop or GURPS implementation; live campaign state
+  is not persisted and LAN hosting uses unencrypted HTTP on trusted networks.
+- Model-to-model capability calls require explicit manifest permissions;
+  current model manifests do not automatically call `recall`.
+- Memory compaction, vector retrieval, and complete memory-write enforcement
+  remain unfinished.
+- The package CLI has no publishing service; package installs need compatible
+  weights and Ollama.
 
-## Current limitations
+## Documentation
 
-- Models do not receive memory context, and manifest memory-read declarations
-  are not enforced or injected at runtime.
-- Voice pipeline and microphone integration are not implemented.
-- Tasks panel is not connected to a task graph; Memory panel tag editing and
-  Trace call-stack graph are unfinished.
-- Vector retrieval, fuzzy/forced reindex, tag audit, memory compaction, and
-  automatic dossier compilation are unfinished.
-- Model residency warm-up and complete GUI theme application are unfinished.
-- Mermaid-like graph configuration and the Hot-plug /
-  Selected-for-background residency modes are specified but unfinished.
-- In-place package signing, publishing, bundled verification key, and key
-  rotation workflow are unfinished.
+- [Setup guide](./setup.md)
+- [Account registry and PUPC](./docs/account-registry.md)
+- [Remote models](./docs/remote-models.md)
+- [Agent skills](./docs/agent-skills.md)
+- [Interoperability](./docs/agent-interoperability.md)
+- [Visual Output](./docs/visual-output.md)
+- [Virtual Tabletop](./docs/vtt.md)
+- [Voice status](./docs/voice.md)
 
-## Architecture decisions
+<details>
+<summary>Architecture decisions (ADR-0001 through ADR-0021)</summary>
 
 - [ADR-0001 — AssiStuff and Noredur coexistence](./docs/adr/ADR-0001-assistuff-framework-noredur-coexistence.md)
 - [ADR-0002 — Declarative configuration](./docs/adr/ADR-0002-declarative-model-configuration.md)
 - [ADR-0003 — Self-contained `.nrdpkg` packages](./docs/adr/ADR-0003-self-contained-nrdpkg-model-packages.md)
-- [ADR-0004 — `assistuff-pack` CLI](./docs/adr/ADR-0004-assistuff-pack-cli.md)
+- [ADR-0004 — Package CLI](./docs/adr/ADR-0004-assistuff-pack-cli.md)
 - [ADR-0005 — Capability bus and output chain](./docs/adr/ADR-0005-peer-capability-bus-and-output-chain.md)
 - [ADR-0006 — Tabbed GUI](./docs/adr/ADR-0006-distributed-tabbed-gui.md)
 - [ADR-0007 — Package signing and provenance](./docs/adr/ADR-0007-ed25519-signing-and-provenance.md)
@@ -295,4 +352,13 @@ and `--mic` options are also not connected to a voice pipeline.
 - [ADR-0011 — Model manifests and SVG avatars](./docs/adr/ADR-0011-local-models-and-avatars.md)
 - [ADR-0012 — macOS app bundle](./docs/adr/ADR-0012-macos-one-click-app.md)
 - [ADR-0013 — Installed Ollama models](./docs/adr/ADR-0013-installed-ollama-models.md)
-- [ADR-0014 — Graph configuration and Ollama residency modes](./docs/adr/ADR-0014-graph-configuration-and-ollama-residency-modes.md)
+- [ADR-0014 — Graph configuration and residency](./docs/adr/ADR-0014-graph-configuration-and-ollama-residency-modes.md)
+- [ADR-0015 — Remote model APIs](./docs/adr/ADR-0015-remote-model-api-providers.md)
+- [ADR-0016 — First-class agent skills](./docs/adr/ADR-0016-first-class-agent-skills.md)
+- [ADR-0017 — End-to-end voice](./docs/adr/ADR-0017-end-to-end-voice-pipeline.md)
+- [ADR-0018 — PUPC account registry](./docs/adr/ADR-0018-pupc-account-registry.md)
+- [ADR-0019 — Visual Output and HTML artifacts](./docs/adr/ADR-0019-visual-output-html-artifacts.md)
+- [ADR-0020 — Open agent interoperability](./docs/adr/ADR-0020-open-agent-interoperability.md)
+- [ADR-0021 — Virtual Tabletop showcase](./docs/adr/ADR-0021-virtual-tabletop-showcase.md)
+
+</details>

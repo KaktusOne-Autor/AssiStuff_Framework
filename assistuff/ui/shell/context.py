@@ -8,6 +8,10 @@ from typing import Any
 from assistuff.bus.events import ChainEvent
 from assistuff.config.schemas import RuntimeConfigBundle
 
+AUDIO_ENABLED_SETTING = "voice/audio_enabled"
+SETTINGS_APPLICATION = "AssiStuff"
+SETTINGS_ORGANIZATION = "AssiStuff"
+
 
 @dataclass
 class UiContext:
@@ -15,6 +19,9 @@ class UiContext:
     dispatcher: Any = None          # Dispatcher or None
     profile: str = "default"
     user_level: int = 0
+    user_name: str = "guest"
+    account_id: str | None = None
+    authenticated: bool = False
     metadata: dict = field(default_factory=dict)
 
     def emit_test_event(self, trace_id: str = "ui") -> ChainEvent:

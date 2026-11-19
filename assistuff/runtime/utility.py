@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from assistuff.config.schemas import RuntimeConfigBundle
 from assistuff.runtime.ollama import OllamaClient
+
+if TYPE_CHECKING:
+    from assistuff.runtime.residency import ModelResidency
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +22,16 @@ class UtilityRole:
 
 
 class UtilityRoles:
-    def __init__(self, client: OllamaClient, config: RuntimeConfigBundle) -> None:
+    def __init__(
+        self,
+        client: OllamaClient,
+        config: RuntimeConfigBundle,
+        *,
+        residency: ModelResidency | None = None,
+    ) -> None:
         self.client = client
         self.config = config
+        self.residency = residency
         fw = config.framework.runtime.utility_models
         self._roles: dict[str, UtilityRole] = {
             "router": UtilityRole("router", fw.router),
@@ -46,6 +57,8 @@ class UtilityRoles:
         options: dict | None = None,
     ) -> str:
         r = self.get(role)
+        if self.residency is not None:
+            await self.residency.ensure_loaded(r.model)
         return await self.client.generate(
             model=r.model,
             prompt=prompt,
@@ -64,6 +77,8 @@ class UtilityRoles:
         options: dict | None = None,
     ) -> dict:
         r = self.get(role)
+        if self.residency is not None:
+            await self.residency.ensure_loaded(r.model)
         return await self.client.generate_json(
             model=r.model,
             prompt=prompt,

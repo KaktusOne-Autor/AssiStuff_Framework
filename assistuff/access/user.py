@@ -9,6 +9,8 @@ from dataclasses import dataclass
 class User:
     level: int = 0
     name: str = "guest"
+    account_id: str | None = None
+    authenticated: bool = False
 
     def can(self, required_level: int) -> bool:
         return self.level >= required_level

@@ -1,0 +1,41 @@
+id: voice_auth
+version: "1.0.0"
+kind: skill
+description: Verify a local WAV recording against the active profile voiceprint.
+capabilities:
+  provides: [voice.auth.identify]
+  requires: []
+access:
+  min_level: 0
+interop:
+  accepts_calls_from: [user]
+  can_call: []
+emits:
+  default_kind: result
+  can_emit: [result, error]
+memory:
+  reads: []
+  writes: []
+  dossier_access: none
+network:
+  outbound: false
+  hosts: []
+implementation:
+  module: assistuff.voice.capabilities
+  entrypoint: make_voice_capabilities
+input_schema:
+  type: object
+  properties:
+    audio_path:
+      type: string
+  required: [audio_path]
+  additionalProperties: false
+output_schema:
+  type: object
+  properties:
+    profile:
+      type: string
+    similarity:
+      type: number
+  required: [profile, similarity]
+  additionalProperties: false

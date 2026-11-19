@@ -80,9 +80,14 @@ class Turn:
         )
 
         final_text = ""
+        working_memory = session.memory.new_working(trace.trace_id)
         async for event in self.bus.call(
             route.capability,
-            {"value": query, "input": query},
+            {
+                "value": query,
+                "input": query,
+                "_working_memory": working_memory,
+            },
             caller="user",
             trace=trace,
         ):
@@ -109,7 +114,7 @@ class Turn:
                 summary = await self.summarizer.summarize(query, final_text)
             except Exception:
                 logger.exception("summarizer failed")
-            self.memory_writer.record(
+            await self.memory_writer.record(
                 user_text=query,
                 assistant_text=final_text,
                 summary=summary,

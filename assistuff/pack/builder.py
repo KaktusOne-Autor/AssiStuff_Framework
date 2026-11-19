@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import io
 import logging
+import os
 import shutil
+import stat
 import tarfile
 import tempfile
 from pathlib import Path
@@ -14,7 +16,11 @@ import yaml
 from .hashing import sha256_file
 from .manifest import PackageManifest, WeightFile
 from .resolvers import resolve_weights
-from .signer import sign_manifest_and_hashes, utc_now_iso
+from .signer import (
+    public_key_fingerprint,
+    sign_manifest_and_hashes,
+    utc_now_iso,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +92,8 @@ def build_package(
 
         # 5. Rewrite manifest with hashes
         manifest.integrity.signed_at = utc_now_iso()
+        if sign_key is not None:
+            manifest.integrity.signed_by = public_key_fingerprint(sign_key)
         manifest_bytes = yaml.safe_dump(
             manifest.model_dump(mode="json"),
             allow_unicode=True,
@@ -113,6 +121,118 @@ def build_package(
 
     logger.info("built %s (%d bytes)", pkg_path, pkg_path.stat().st_size)
     return pkg_path
+
+
+def sign_package(pkg_path: Path, private_key_path: Path) -> Path:
+    """Re-sign a package in place, preserving its archive compression."""
+    pkg_path = pkg_path.resolve()
+    if not pkg_path.is_file():
+        raise BuildError(f"package not found: {pkg_path}")
+    if not private_key_path.is_file():
+        raise BuildError(f"private key not found: {private_key_path}")
+
+    original_mode = stat.S_IMODE(pkg_path.stat().st_mode)
+    with tempfile.TemporaryDirectory(prefix="assistuff-sign-") as staging_str:
+        staging = Path(staging_str)
+        _extract_package(pkg_path, staging)
+        manifest_path = staging / "manifest.yaml"
+        if not manifest_path.is_file():
+            raise BuildError("package has no manifest.yaml")
+        try:
+            manifest = PackageManifest.model_validate(
+                yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+            )
+        except Exception as exc:
+            raise BuildError(f"invalid package manifest: {exc}") from exc
+
+        from .installer import InstallError, _verify_weights
+
+        try:
+            _verify_weights(staging, manifest)
+        except InstallError as exc:
+            raise BuildError(f"cannot sign package with invalid weights: {exc}") from exc
+
+        hashes_path = staging / "integrity" / "weights.sha256"
+        if not hashes_path.is_file():
+            raise BuildError("package has no integrity/weights.sha256")
+        hashes_bytes = hashes_path.read_bytes()
+        manifest.integrity.signed_at = utc_now_iso()
+        manifest.integrity.signed_by = public_key_fingerprint(private_key_path)
+        manifest_bytes = yaml.safe_dump(
+            manifest.model_dump(mode="json"),
+            allow_unicode=True,
+            sort_keys=False,
+        ).encode("utf-8")
+        manifest_path.write_bytes(manifest_bytes)
+        from .hashing import sha256_bytes
+
+        (staging / "integrity" / "package.sha256").write_text(
+            sha256_bytes(manifest_bytes + hashes_bytes) + "\n",
+            encoding="utf-8",
+        )
+        (staging / "signature.sig").write_bytes(
+            sign_manifest_and_hashes(
+                manifest_bytes,
+                hashes_bytes,
+                private_key_path,
+            )
+        )
+
+        with tempfile.NamedTemporaryFile(
+            dir=pkg_path.parent,
+            prefix=f".{pkg_path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            archive_path = Path(handle.name)
+        try:
+            compression = _package_compression(pkg_path)
+            _create_archive(staging, archive_path, compress=compression)
+            archive_path.chmod(original_mode)
+            os.replace(archive_path, pkg_path)
+        except Exception:
+            archive_path.unlink(missing_ok=True)
+            raise
+
+    logger.info("signed package %s with %s", pkg_path, manifest.integrity.signed_by)
+    return pkg_path
+
+
+def _package_compression(pkg_path: Path) -> str:
+    with pkg_path.open("rb") as handle:
+        magic = handle.read(4)
+    if magic == b"\x28\xb5\x2f\xfd":
+        return "zstd"
+    if magic.startswith(b"\x1f\x8b"):
+        return "gz"
+    return "none"
+
+
+def _extract_package(pkg_path: Path, staging: Path) -> None:
+    from .installer import InstallError, _safe_extract
+
+    try:
+        compression = _package_compression(pkg_path)
+        if compression == "zstd":
+            try:
+                import zstandard as zstd
+            except ImportError as exc:
+                raise BuildError(
+                    "zstandard is required to sign this package; "
+                    "install with: pip install 'assistuff[pack]'"
+                ) from exc
+            with pkg_path.open("rb") as raw:
+                with zstd.ZstdDecompressor().stream_reader(raw) as decompressed:
+                    with tarfile.open(fileobj=decompressed, mode="r|") as archive:
+                        _safe_extract(archive, staging)
+        else:
+            mode = "r:gz" if compression == "gz" else "r:"
+            with tarfile.open(pkg_path, mode=mode) as archive:
+                _safe_extract(archive, staging)
+    except (BuildError, InstallError):
+        raise
+    except Exception as exc:
+        raise BuildError(f"failed to extract package for signing: {exc}") from exc
 
 
 def _copy_source(source_dir: Path, staging: Path) -> None:

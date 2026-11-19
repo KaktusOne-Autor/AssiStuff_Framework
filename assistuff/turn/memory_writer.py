@@ -21,7 +21,13 @@ class MemoryWriter:
         self.compile_hook = compile_hook
         self.enabled = enabled
 
-    def record(self, *, user_text: str, assistant_text: str, summary: str = "") -> None:
+    async def record(
+        self,
+        *,
+        user_text: str,
+        assistant_text: str,
+        summary: str = "",
+    ) -> None:
         if not self.enabled:
             return
         try:
@@ -39,6 +45,8 @@ class MemoryWriter:
 
         if self.compile_hook is not None:
             try:
-                self.compile_hook()
+                result = self.compile_hook()
+                if hasattr(result, "__await__"):
+                    await result
             except Exception:
                 logger.exception("dossier compile hook failed")

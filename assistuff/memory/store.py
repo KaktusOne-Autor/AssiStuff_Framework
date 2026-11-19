@@ -22,8 +22,19 @@ class MemoryStore:
         self.config = config
 
         self.short_term = ShortTermMemory(self.profile_dir / "memory.db")
-        self.long_term = LongTermMemory(self.profile_dir / "memory.md")
-        self.retriever = MemoryRetriever(self.long_term)
+        self.long_term = LongTermMemory(
+            self.profile_dir / "memory.md",
+            tags_config=config.long_term.tags,
+        )
+        tag_config = config.long_term.tags
+        self.retriever = MemoryRetriever(
+            self.long_term,
+            max_retries=(
+                tag_config.max_retries
+                if tag_config.search_on_unknown_tag == "retry"
+                else 0
+            ),
+        )
         self.dossier_storage = DossierStorage(self.profile_dir)
         self.dossier_slicer = DossierSlicer(config.dossier)
 

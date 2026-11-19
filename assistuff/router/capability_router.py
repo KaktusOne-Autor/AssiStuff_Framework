@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import json
 import logging
-import re
 from dataclasses import dataclass, field
 
-from assistuff.bus.capability_bus import Capability, CapabilityBus
+from assistuff.bus.capability_bus import CapabilityBus
 from assistuff.config.schemas import RuntimeConfigBundle
 from assistuff.runtime.residency import ModelResidency
 from assistuff.runtime.utility import UtilityRoles
@@ -25,7 +23,7 @@ _ROUTER_SCHEMA = {
 
 _ROUTER_PROMPT = """You classify a user request into one capability from the list.
 
-Return JSON: {"capability": "<name>", "reason": "<short>"}
+Return JSON: {{"capability": "<name>", "reason": "<short>"}}
 
 Rules:
 - Choose exactly one capability from the list.
@@ -90,6 +88,8 @@ class CapabilityRouter:
     def _all_capabilities(self) -> list[str]:
         caps: set[str] = set()
         for unit in self.bus.units():
+            if not unit.routable:
+                continue
             caps.update(unit.capabilities)
         return sorted(caps)
 

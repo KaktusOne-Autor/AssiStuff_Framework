@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
@@ -51,9 +52,25 @@ def generate_keypair(key_dir: Path, name: str = "default") -> tuple[Path, Path]:
 
 def sign_payload(payload: bytes, private_key_path: Path) -> bytes:
     Ed25519PrivateKey, _Pub, serialization = _require_crypto()
-    raw = private_key_path.read_bytes()
-    private = Ed25519PrivateKey.from_private_bytes(raw)
-    return private.sign(payload)
+    try:
+        raw = private_key_path.read_bytes()
+        private = Ed25519PrivateKey.from_private_bytes(raw)
+        return private.sign(payload)
+    except (OSError, ValueError) as exc:
+        raise SigningError(f"could not load private signing key: {exc}") from exc
+
+
+def public_key_fingerprint(private_key_path: Path) -> str:
+    Ed25519PrivateKey, _Pub, serialization = _require_crypto()
+    try:
+        private = Ed25519PrivateKey.from_private_bytes(private_key_path.read_bytes())
+    except (OSError, ValueError) as exc:
+        raise SigningError(f"could not load private signing key: {exc}") from exc
+    public_bytes = private.public_key().public_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PublicFormat.Raw,
+    )
+    return f"sha256:{hashlib.sha256(public_bytes).hexdigest()}"
 
 
 def verify_signature(payload: bytes, signature: bytes, public_key_path: Path) -> bool:

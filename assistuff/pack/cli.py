@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
 
 from assistuff import __version__
 from assistuff.config.paths import get_keys_dir
 
-from .builder import BuildError, build_package
+from .builder import BuildError, build_package, sign_package
 from .installer import (
     InstallError,
     install_package,
@@ -26,6 +27,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="AssiStuff package builder",
     )
     parser.add_argument("--version", action="version", version=f"assistuff-pack {__version__}")
+    parser.add_argument("--verbose", action="store_true", help="show informational logs")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_init = sub.add_parser("init", help="scaffold a new package")
@@ -62,12 +64,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_install.add_argument("--public-key", type=Path, default=None)
     p_install.add_argument("--no-verify", action="store_true")
     p_install.add_argument("--ollama-host", default="http://localhost:11434")
+    p_install.add_argument("--admin-account", default=None)
 
     sub.add_parser("list", help="list installed packages")
 
     p_uninstall = sub.add_parser("uninstall", help="uninstall a package")
     p_uninstall.add_argument("package_id")
     p_uninstall.add_argument("--version", default=None)
+    p_uninstall.add_argument("--admin-account", default=None)
 
     p_keys = sub.add_parser("keys", help="key management")
     p_keys.add_argument("action", choices=["generate", "list"])
@@ -84,6 +88,11 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    logging.basicConfig(
+        level=logging.INFO if args.verbose else logging.WARNING,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
 
     try:
         if args.command == "init":
@@ -212,11 +221,13 @@ def _cmd_verify(args) -> int:
 
 
 def _cmd_sign(args) -> int:
-    print("[INFO] in-place signing not yet implemented; use --sign-key with build")
+    pkg = sign_package(args.path, args.key)
+    print(f"[OK] signed {pkg}")
     return 0
 
 
 def _cmd_install(args) -> int:
+    _require_package_admin(args.admin_account)
     entry = install_package(
         args.path,
         allow_unsigned=args.allow_unsigned,
@@ -246,6 +257,7 @@ def _cmd_list(args) -> int:
 
 
 def _cmd_uninstall(args) -> int:
+    _require_package_admin(args.admin_account)
     uninstall_package(args.package_id, args.version)
     print(f"[OK] uninstalled {args.package_id}")
     return 0
@@ -264,6 +276,26 @@ def _cmd_keys(args) -> int:
             print(path.stem)
         return 0
     return 0
+
+
+def _require_package_admin(username: str | None) -> None:
+    from getpass import getpass
+
+    from assistuff.access import AccountError, AccountRegistry
+    from assistuff.config.paths import get_user_root
+
+    accounts = AccountRegistry(get_user_root() / "accounts.db")
+    if not accounts.has_accounts():
+        return
+    if not username:
+        raise InstallError(
+            "package installation/removal requires --admin-account when accounts exist"
+        )
+    try:
+        session = accounts.authenticate(username, getpass("Administrator password: "))
+        accounts.list_accounts(session.user)
+    except AccountError as exc:
+        raise InstallError(str(exc)) from exc
 
 
 def _cmd_export(args) -> int:

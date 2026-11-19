@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import ipaddress
 import re
 from pathlib import Path
+from pathlib import PurePosixPath
 from typing import Literal
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator  # pyright: ignore[reportMissingImports]
 
@@ -61,10 +64,98 @@ class UtilityModels(StrictModel):
     compiler: str | None = None
 
 
+class RemoteEndpointConfig(StrictModel):
+    provider: Literal["openai_compatible"] = "openai_compatible"
+    base_url: str
+    api_key_env: str
+    allow_insecure_http: bool = False
+    connect_timeout_seconds: float = Field(default=10.0, gt=0)
+    read_timeout_seconds: float = Field(default=90.0, gt=0)
+    max_retries: int = Field(default=1, ge=0, le=2)
+
+    @field_validator("base_url")
+    @classmethod
+    def _valid_base_url(cls, value: str) -> str:
+        parsed = urlsplit(value)
+        if (
+            parsed.scheme not in {"https", "http"}
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ValueError("base_url must be an absolute HTTP(S) URL without credentials")
+        return value.rstrip("/")
+
+    @field_validator("api_key_env")
+    @classmethod
+    def _valid_api_key_env(cls, value: str) -> str:
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", value):
+            raise ValueError("api_key_env must be an environment variable name")
+        return value
+
+    @model_validator(mode="after")
+    def _require_tls_unless_explicit(self) -> "RemoteEndpointConfig":
+        parsed = urlsplit(self.base_url)
+        if parsed.scheme == "https":
+            return self
+        if not self.allow_insecure_http:
+            raise ValueError("remote endpoints must use HTTPS unless HTTP is explicitly allowed")
+        host = parsed.hostname or ""
+        try:
+            address = ipaddress.ip_address(host)
+            trusted_local = (
+                address.is_private or address.is_loopback or address.is_link_local
+            )
+        except ValueError:
+            trusted_local = (
+                host == "localhost"
+                or host.endswith(".localhost")
+                or host.endswith(".local")
+            )
+        if not trusted_local:
+            raise ValueError(
+                "insecure HTTP is limited to loopback/private IPs and local hostnames"
+            )
+        return self
+
+
 class ResidencyConfig(StrictModel):
-    pinned: list[str] = Field(default_factory=lambda: ["router", "planner"])
+    mode: Literal["hot_plug", "selected_for_background"] = "hot_plug"
+    pinned: list[str] = Field(default_factory=list)
+    background_models: list[str] = Field(default_factory=list)
     keep_alive: str = "5m"
     max_loaded: int = Field(default=2, ge=1)
+
+    @field_validator("pinned")
+    @classmethod
+    def _unique_pinned_models(cls, value: list[str]) -> list[str]:
+        if len(set(value)) != len(value):
+            raise ValueError("pinned models must not contain duplicates")
+        if any(not model.strip() for model in value):
+            raise ValueError("pinned model names must not be empty")
+        return value
+
+    @field_validator("background_models")
+    @classmethod
+    def _unique_background_models(cls, value: list[str]) -> list[str]:
+        if len(set(value)) != len(value):
+            raise ValueError("background_models must not contain duplicates")
+        if any(not model.strip() for model in value):
+            raise ValueError("background model names must not be empty")
+        return value
+
+    @model_validator(mode="after")
+    def _background_count_within_limit(self) -> "ResidencyConfig":
+        startup_models = set(self.pinned)
+        if self.mode == "selected_for_background":
+            startup_models.update(self.background_models)
+        if len(startup_models) > self.max_loaded:
+            raise ValueError(
+                "pinned and background models cannot exceed residency.max_loaded"
+            )
+        return self
 
 
 class RuntimeConfig(StrictModel):
@@ -73,6 +164,7 @@ class RuntimeConfig(StrictModel):
     registry: str = "~/.assistuff/models"
     max_hops: int = Field(default=5, ge=1, le=20)
     residency: ResidencyConfig = Field(default_factory=ResidencyConfig)
+    remote_endpoints: dict[str, RemoteEndpointConfig] = Field(default_factory=dict)
 
 
 class SttConfig(StrictModel):
@@ -126,6 +218,7 @@ class TtsConfig(StrictModel):
 
 
 class VoiceConfig(StrictModel):
+    enabled: bool = False
     stt: SttConfig
     auth: VoiceAuthConfig
     wake: WakeWordConfig
@@ -147,6 +240,12 @@ class LongTermTagsConfig(StrictModel):
     fallback: str = "#misc"
     search_on_unknown_tag: Literal["retry", "warn"] = "retry"
     max_retries: int = Field(default=1, ge=0, le=3)
+
+    @model_validator(mode="after")
+    def _min_tags_within_max(self) -> "LongTermTagsConfig":
+        if self.min_per_note > self.max_per_note:
+            raise ValueError("min_per_note cannot exceed max_per_note")
+        return self
 
 
 class LongTermIndexConfig(StrictModel):
@@ -223,10 +322,16 @@ class UiConfig(StrictModel):
     tray_icon_size: int = Field(default=22, gt=0)
     tabs: list[str] = Field(
         default_factory=lambda: [
-            "chat", "models", "tasks", "memory",
+            "chat", "models", "tasks", "memory", "visual", "vtt", "graph",
             "skills", "trace", "settings", "plugins",
         ]
     )
+
+
+class VttConfig(StrictModel):
+    ruleset: Literal["gurps_3d6"] = "gurps_3d6"
+    map_width: int = Field(default=16, ge=8, le=32)
+    map_height: int = Field(default=10, ge=8, le=24)
 
 
 class TelemetryConfig(StrictModel):
@@ -259,6 +364,7 @@ class FrameworkConfig(StrictModel):
     tasks: TasksConfig
     access: AccessConfig = Field(default_factory=AccessConfig)
     ui: UiConfig = Field(default_factory=UiConfig)
+    vtt: VttConfig = Field(default_factory=VttConfig)
     telemetry: TelemetryConfig = Field(default_factory=TelemetryConfig)
     hardware: HardwareConfig = Field(default_factory=HardwareConfig)
     output_chain: OutputChainConfig = Field(default_factory=OutputChainConfig)
@@ -269,14 +375,30 @@ class FrameworkConfig(StrictModel):
 # ---------------------------------------------------------------------------
 
 class ModelRuntime(StrictModel):
-    backend: Literal["ollama", "llama_cpp", "mlx"] = "ollama"
+    backend: Literal["ollama", "llama_cpp", "mlx", "remote_api"] = "ollama"
     tag: str
+    provider: Literal["openai_compatible"] | None = None
+    endpoint_profile: str | None = None
     context_window: int = Field(default=8192, gt=0)
     temperature: float = Field(default=0.2, ge=0.0, le=2.0)
     max_tokens: int = Field(default=2048, gt=0)
     keep_alive: str = "5m"
     format: Literal["text", "json"] = "text"
     options: dict[str, object] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _remote_endpoint_required(self) -> "ModelRuntime":
+        if self.backend == "remote_api":
+            if self.provider != "openai_compatible" or not self.endpoint_profile:
+                raise ValueError(
+                    "remote_api models require provider=openai_compatible "
+                    "and an endpoint_profile"
+                )
+        elif self.provider is not None or self.endpoint_profile is not None:
+            raise ValueError(
+                "provider and endpoint_profile are only valid for remote_api models"
+            )
+        return self
 
 
 class ModelCapabilities(StrictModel):
@@ -389,6 +511,7 @@ class SkillManifest(StrictModel):
     id: str
     version: str
     kind: Literal["skill"] = "skill"
+    description: str = ""
 
     capabilities: ModelCapabilities = Field(default_factory=ModelCapabilities)
     access: AccessSpec | None = None
@@ -397,7 +520,39 @@ class SkillManifest(StrictModel):
     memory: MemoryAccessSpec = Field(default_factory=MemoryAccessSpec)
     network: SkillNetworkSpec = Field(default_factory=SkillNetworkSpec)
 
-    implementation: SkillImplementation
+    implementation: SkillImplementation | None = None
+    instructions_file: str | None = None
+    input_schema: dict[str, object] | None = None
+    output_schema: dict[str, object] | None = None
+    permissions: list[
+        Literal[
+            "filesystem.read",
+            "filesystem.write",
+            "network",
+            "subprocess",
+            "memory.read",
+            "memory.write",
+            "visual.output",
+        ]
+    ] = Field(default_factory=list)
+
+    @field_validator("instructions_file")
+    @classmethod
+    def _safe_instruction_path(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        path = PurePosixPath(value)
+        if path.is_absolute() or ".." in path.parts or not path.parts:
+            raise ValueError("instructions_file must be a safe package-relative path")
+        return value
+
+    @model_validator(mode="after")
+    def _has_executable_or_instructions(self) -> "SkillManifest":
+        if self.implementation is None and self.instructions_file is None:
+            raise ValueError(
+                "skill manifest requires implementation or instructions_file"
+            )
+        return self
 
     @field_validator("id")
     @classmethod

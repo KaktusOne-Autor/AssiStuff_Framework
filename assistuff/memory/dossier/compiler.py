@@ -45,26 +45,26 @@ class DossierCompiler:
         self.long_term = long_term
         self.storage = storage
         self.profile = profile
-        self._counter = 0
+        self._counter = short_term.count_messages() // 2
 
-    def maybe_compile(self) -> Dossier | None:
+    async def maybe_compile(self) -> Dossier | None:
         self._counter += 1
         if self._counter % self.config.compile_every != 0:
             return None
         try:
-            return self.compile()
+            return await self.compile()
         except Exception:
             logger.exception("dossier compilation failed")
             return None
 
-    def compile(self) -> Dossier:
+    async def compile(self) -> Dossier:
         current = self.storage.load(self.profile)
         recent = self.short_term.recent_messages(limit=40)
         notes = self._select_notes(current)
 
         prompt = self._build_prompt(current, recent, notes)
         try:
-            data = self.roles.generate_json(
+            data = await self.roles.generate_json(
                 self.config.compile_model,
                 prompt,
                 schema=_COMPILER_SCHEMA,

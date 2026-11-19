@@ -5,12 +5,14 @@ from __future__ import annotations
 import logging
 import re
 import sqlite3
+from collections import Counter
 from contextlib import contextmanager
 from collections.abc import Generator
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from assistuff.config.schemas import LongTermTagsConfig
 from .tags import TagRegistry
 
 logger = logging.getLogger(__name__)
@@ -60,10 +62,17 @@ class MemoryQuery:
 
 
 class LongTermMemory:
-    def __init__(self, memory_md_path: str | Path, index_path: str | Path | None = None) -> None:
+    def __init__(
+        self,
+        memory_md_path: str | Path,
+        index_path: str | Path | None = None,
+        *,
+        tags_config: LongTermTagsConfig | None = None,
+    ) -> None:
         self.memory_md_path = Path(memory_md_path)
         self.index_path = Path(index_path) if index_path else self.memory_md_path.with_suffix(".index.db")
         self.tags = TagRegistry(self.memory_md_path)
+        self.tags_config = tags_config or LongTermTagsConfig()
         self._ensure_files()
         self._ensure_index()
         self.tags.load()
@@ -119,7 +128,7 @@ class LongTermMemory:
 
     def _reindex_if_needed(self) -> None:
         if not self.index_path.exists() or self._index_is_stale():
-            self.reindex()
+            self.reindex(force=True)
 
     def _index_is_stale(self) -> bool:
         if not self.index_path.exists():
@@ -131,7 +140,9 @@ class LongTermMemory:
         except OSError:
             return True
 
-    def reindex(self) -> None:
+    def reindex(self, *, force: bool = False) -> int:
+        if not force and not self._index_is_stale():
+            return self.count()
         notes = self._parse_notes()
         with self._connect() as conn:
             conn.execute("DELETE FROM time_index")
@@ -154,6 +165,7 @@ class LongTermMemory:
                 except sqlite3.OperationalError:
                     pass
         logger.info("reindexed %d notes", len(notes))
+        return len(notes)
 
     def _parse_notes(self) -> list[dict]:
         if not self.memory_md_path.is_file():
@@ -183,23 +195,36 @@ class LongTermMemory:
             raise ValueError("note text must not be empty")
         if len(text) > 500:
             raise ValueError("note text must not exceed 500 characters")
-        if not tags:
-            tags = ["#misc"]
-        canonical: list[str] = []
-        for tag in tags:
-            c = self.tags.canonical(tag)
+        canonical = self.tags.canonicalize_many(tags)
+        if not canonical:
+            canonical = [self.tags_config.fallback]
+        if len(canonical) > self.tags_config.max_per_note:
+            raise ValueError(
+                f"a memory note can have at most "
+                f"{self.tags_config.max_per_note} tags"
+            )
+        while len(canonical) < self.tags_config.min_per_note:
+            fallback = self.tags.canonical(self.tags_config.fallback)
+            if fallback in canonical:
+                raise ValueError(
+                    f"this note requires at least {self.tags_config.min_per_note} "
+                    "distinct tags"
+                )
+            canonical.append(fallback)
+
+        for c in canonical:
+            if not self.tags.is_known(c) and not self.tags_config.dynamic:
+                raise ValueError(f"unknown memory tag {c!r}; dynamic tags are disabled")
             if not self.tags.is_known(c):
-                try:
-                    self.tags.add(c, position="top")
-                except Exception as exc:
-                    logger.warning("could not add tag %s: %s", c, exc)
-            if c not in canonical:
-                canonical.append(c)
+                self.tags.add(
+                    c,
+                    position=self.tags_config.new_tag_position,
+                )
         timestamp = datetime.now().astimezone().isoformat(timespec="seconds")
         line = f"- [{timestamp}] {' '.join(canonical)} {text}\n"
         with self.memory_md_path.open("a", encoding="utf-8") as handle:
             handle.write(line)
-        self.reindex()
+        self.reindex(force=True)
         return MemoryHit(
             line_start=0,
             timestamp=timestamp,
@@ -301,3 +326,15 @@ class LongTermMemory:
         with self._connect() as conn:
             row = conn.execute("SELECT COUNT(*) FROM time_index").fetchone()
         return int(row[0]) if row else 0
+
+    def audit_tags(self) -> tuple[dict[str, int], list[str]]:
+        counts: Counter[str] = Counter()
+        for note in self._parse_notes():
+            counts.update(note["tags"])
+        unknown = sorted(tag for tag in counts if not self.tags.is_known(tag))
+        ordered_counts = {
+            tag: counts.get(tag, 0)
+            for tag in self.tags.all()
+        }
+        ordered_counts.update({tag: counts[tag] for tag in unknown})
+        return ordered_counts, unknown

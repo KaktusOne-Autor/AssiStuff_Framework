@@ -19,10 +19,12 @@ when a generated search query contains an unknown tag.
 ## Implementation record
 
 Retrieval and indexing are implemented in `assistuff/memory/retrieval.py` and
-`assistuff/memory/long_term.py`. CLI operations include search, append, tags,
-and reindex.
+`assistuff/memory/long_term.py`. Retrieval supports time/keyword/tag filters,
+fuzzy matching of close tag names, a single asynchronous planner retry for
+unknown tags, and fallback to unfiltered search if tags remain unknown. CLI
+operations include search, append, tags, tag audit, and `reindex --force`.
 
 ## Remaining work
 
-Implement vector search, a `reindex --force` option, and fuzzy tag matching.
-SQLite FTS5 is expected from the supported macOS Python builds.
+Implement vector search. SQLite FTS5 is expected from the supported macOS
+Python builds.

@@ -1,0 +1,39 @@
+id: voice_tts
+version: "1.0.0"
+kind: skill
+description: Speak text with the configured local Piper voice.
+capabilities:
+  provides: [voice.tts.speak]
+  requires: []
+access:
+  min_level: 0
+interop:
+  accepts_calls_from: [user]
+  can_call: []
+emits:
+  default_kind: result
+  can_emit: [result, error]
+memory:
+  reads: []
+  writes: []
+  dossier_access: none
+network:
+  outbound: false
+  hosts: []
+implementation:
+  module: assistuff.voice.capabilities
+  entrypoint: make_voice_capabilities
+input_schema:
+  type: object
+  properties:
+    text:
+      type: string
+  required: [text]
+  additionalProperties: false
+output_schema:
+  type: object
+  properties:
+    text:
+      type: string
+  required: [text]
+  additionalProperties: false

@@ -1,8 +1,7 @@
 framework:
   name: AssiStuff
-  version: "1.0.0"
+  version: 1.0.1-beta
   mode: local-first
-
 runtime:
   ollama:
     host: http://localhost:11434
@@ -18,20 +17,22 @@ runtime:
   registry: ~/.assistuff/models
   max_hops: 5
   residency:
-    pinned: [router, planner]
+    mode: hot_plug
+    pinned: []
+    background_models: []
     keep_alive: 5m
     max_loaded: 2
-
 voice:
+  enabled: false
   stt:
     engine: whisper_cpp
-    binary_path: /usr/local/bin/whisper-cpp
+    binary_path: whisper-cli
     model_path: models/ggml-small.bin
     language: ru
     sample_rate: 16000
-    max_record_seconds: 60
+    max_record_seconds: 60.0
     silence_timeout_seconds: 1.2
-    speech_threshold: 300
+    speech_threshold: 300.0
   auth:
     enabled: true
     model_path: models/vosk-model-small-ru-0.22
@@ -40,10 +41,14 @@ voice:
     similarity_threshold: 0.35
     minimum_margin: 0.06
     enrollment_samples: 5
-    enrollment_max_seconds: 45
+    enrollment_max_seconds: 45.0
   wake:
     enabled: false
-    phrases: [north, hey north, норт, эй норт]
+    phrases:
+    - north
+    - hey north
+    - норт
+    - эй норт
     sample_rate: 16000
     frame_samples: 4000
     detection_timeout_seconds: 0.4
@@ -58,7 +63,6 @@ voice:
     config_path: models/piper/ru_RU-irina-medium.onnx.json
     player: /usr/bin/afplay
     enabled: true
-
 memory:
   short_term:
     backend: sqlite
@@ -79,7 +83,7 @@ memory:
       new_tag_position: top
       max_per_note: 3
       min_per_note: 1
-      fallback: "#misc"
+      fallback: '#misc'
       search_on_unknown_tag: retry
       max_retries: 1
   dossier:
@@ -94,16 +98,13 @@ memory:
       recent_topics: on_time_query
       patterns: on_habit_query
       relationships: on_person_query
-
 profiles:
   storage_dir: ~/.assistuff/profiles
   default: default
-
 tasks:
   max_steps: 12
   plugin_dir: plugins
   enabled_plugins: []
-
 access:
   default_level: 0
   profile_levels: {}
@@ -111,29 +112,42 @@ access:
   deny_is_final: true
   no_confirmation_dialogs: true
   log_all_denials: true
-
 ui:
   theme: dark
   start_minimized: false
   show_telemetry_in_main: false
   telemetry_interval_ms: 1000
   tray_icon_size: 22
-  tabs: [chat, models, tasks, memory, skills, trace, settings, plugins]
-
+  tabs:
+  - chat
+  - models
+  - tasks
+  - memory
+  - visual
+  - vtt
+  - graph
+  - skills
+  - trace
+  - settings
+  - plugins
+vtt:
+  ruleset: gurps_3d6
+  map_width: 16
+  map_height: 10
 telemetry:
   cpu: true
   ram: true
   gpu: false
   temperature: false
-
 hardware:
   profile: generic
   ram_gb: 16
   cpu_cores: 8
-  gpu: null
   gpu_usable: false
-
 output_chain:
-  emitters: [gui, tts, log]
+  emitters:
+  - gui
+  - tts
+  - log
   filters_min_kind: result
   stream_to_gui: false

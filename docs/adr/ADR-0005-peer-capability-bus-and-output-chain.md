@@ -23,10 +23,12 @@ observable by more than the original caller.
 ## Implementation record
 
 Core events, trace, output chain, capability bus, adapters, and emitters live
-under `assistuff/bus/`.
+under `assistuff/bus/`. Calls made by a registered model or skill are checked
+against its `interop.can_call` list; wildcard permissions are expanded for
+model tool use. Tests cover allowed/denied peer calls and nested trace paths.
+The Trace panel visualizes call-stack paths and safely receives events emitted
+from worker threads. The Chat panel reads `output_chain.stream_to_gui`.
 
 ## Remaining work
 
-Add a two-model `interop.can_call` enforcement test, read the
-`output_chain.stream_to_gui` switch consistently across the UI, and render the
-trace call stack as a graph in the Trace panel.
+Read `output_chain.stream_to_gui` consistently across all UI output surfaces.

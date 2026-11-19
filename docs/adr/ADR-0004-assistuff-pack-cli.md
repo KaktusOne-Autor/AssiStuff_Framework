@@ -21,8 +21,11 @@ in `bin/assistuff-pack`.
 
 ## Known limitations
 
-- The `sign` subcommand is currently a placeholder. Sign during the build with
-  `build --sign-key PATH`.
 - A `publish` subcommand is not implemented; hosting is undecided.
 - Key generation creates keys in `~/.assistuff/keys/`; users must protect
   private keys and distribute public keys out of band.
+
+The `sign` subcommand signs or re-signs an existing `.nrdpkg` in place. It
+validates the manifest and weight hashes, updates signature metadata and
+integrity hashes, and preserves the archive's supported compression format.
+Use the global `--verbose` option to show informational logs during commands.

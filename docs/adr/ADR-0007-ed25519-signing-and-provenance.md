@@ -24,6 +24,6 @@ install paths create and verify signatures.
 
 ## Remaining work
 
-Implement in-place re-signing, ship a framework verification public key, and
-document public-key rotation. Until then, use `build --sign-key PATH` and pass
-the matching public key to `verify` and `install`.
+Ship a framework verification public key and document public-key rotation.
+Build and in-place signing both record the signer fingerprint and use
+`assistuff-pack verify --public-key PATH` to validate the resulting signature.

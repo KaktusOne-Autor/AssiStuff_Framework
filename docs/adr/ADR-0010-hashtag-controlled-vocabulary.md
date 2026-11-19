@@ -20,9 +20,15 @@ assistant to capture topics that have not previously appeared.
 ## Implementation record
 
 `assistuff/memory/tags.py` provides the tag registry, and the `remember` skill
-accepts a note and tags.
+accepts a note and tags. `LongTermMemory.append()` enforces the configured
+maximum number of distinct tags (three by default) and rejects unknown tags
+when dynamic additions are disabled. `--memory audit-tags` reports usage and
+tags present on notes but missing from the header. Search fuzzy-matches close
+tag names and retries unresolved tags once with the planner before dropping
+the tag filter.
+
+The Memory panel's **Edit tags…** action can add vocabulary entries directly.
 
 ## Remaining work
 
-Connect the unknown-tag retry callback to the planner model, add tag editing in
-the Memory panel, and verify the maximum of three tags per note is enforced.
+Support renaming/removing existing vocabulary entries in the Memory panel.

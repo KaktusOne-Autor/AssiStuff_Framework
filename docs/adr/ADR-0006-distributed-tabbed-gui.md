@@ -21,9 +21,11 @@ and a common context for configuration, profile, and runtime access.
 
 The shell, registry, panels, telemetry dock, and tray live under `assistuff/ui/`.
 The desktop app can be opened with `./bin/assistuff` or `AssiStuff.app`.
+Tasks are planned as a validated DAG and run only after the user selects
+**Run**; each step is routed through the normal dispatcher.
 
 ## Remaining work
 
-Wire Chat's microphone control to voice capabilities, populate Tasks from
-`TaskGraph`, document the reload shortcut in the UI, and apply the configured
+Wire Chat's microphone control to voice capabilities, persist/resume task
+graphs, document the reload shortcut in the UI, and apply the configured
 `qt-material` dark theme consistently.

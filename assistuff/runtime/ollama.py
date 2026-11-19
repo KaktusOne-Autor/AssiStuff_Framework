@@ -162,17 +162,14 @@ class OllamaClient:
             raise OllamaError(f"model {model} returned JSON that is not an object")
         return parsed
 
-    async def load(self, model: str) -> None:
+    async def load(self, model: str, *, keep_alive: str | None = None) -> None:
         """Warm up a model without generating."""
-        try:
-            await self._post("/api/generate", {
-                "model": model,
-                "prompt": "",
-                "stream": False,
-                "keep_alive": self.config.keep_alive,
-            })
-        except OllamaError as exc:
-            logger.warning("Failed to warm up %s: %s", model, exc)
+        await self._post("/api/generate", {
+            "model": model,
+            "prompt": "",
+            "stream": False,
+            "keep_alive": keep_alive or self.config.keep_alive,
+        })
 
     async def unload(self, model: str) -> None:
         await self._post("/api/generate", {

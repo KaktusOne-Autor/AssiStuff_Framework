@@ -37,6 +37,13 @@ class ModelsPanel(QWidget):
 
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel("Models & packages"))
+        self.remote_notice = QLabel(
+            "Remote models send prompts and manifest-authorized memory context "
+            "to their configured provider. Review endpoint and privacy terms "
+            "before routing requests to them."
+        )
+        self.remote_notice.setWordWrap(True)
+        layout.addWidget(self.remote_notice)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
@@ -106,6 +113,11 @@ class ModelsPanel(QWidget):
                 self.installed.addItem(item)
 
         self.manifests.clear()
+        has_remote_models = any(
+            manifest.runtime.backend == "remote_api"
+            for manifest in self.ctx.config.models.values()
+        )
+        self.remote_notice.setVisible(has_remote_models)
         for model_id, manifest in sorted(self.ctx.config.models.items()):
             item = QListWidgetItem(
                 f"{model_id}@{manifest.version}  [{manifest.runtime.backend}]"

@@ -1,0 +1,43 @@
+id: voice_wake
+version: "1.0.0"
+kind: skill
+description: Listen locally for a configured wake phrase.
+capabilities:
+  provides: [voice.wake.listen]
+  requires: []
+access:
+  min_level: 0
+interop:
+  accepts_calls_from: [user]
+  can_call: []
+emits:
+  default_kind: result
+  can_emit: [result, error]
+memory:
+  reads: []
+  writes: []
+  dossier_access: none
+network:
+  outbound: false
+  hosts: []
+implementation:
+  module: assistuff.voice.capabilities
+  entrypoint: make_voice_capabilities
+input_schema:
+  type: object
+  properties:
+    timeout_seconds:
+      type: number
+      minimum: 0.1
+      maximum: 120
+      default: 15
+  additionalProperties: false
+output_schema:
+  type: object
+  properties:
+    phrase:
+      type: string
+    detected:
+      type: boolean
+  required: [phrase, detected]
+  additionalProperties: false

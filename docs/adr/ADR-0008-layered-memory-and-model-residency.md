@@ -25,9 +25,14 @@ models, and eviction behavior.
 
 Memory layers live under `assistuff/memory/`; residency is implemented in
 `assistuff/runtime/residency.py`. Profile data is created under
-`~/.assistuff/profiles/<profile>/` on first use.
+`~/.assistuff/profiles/<profile>/` on first use. Startup warms configured
+pinned models. Turn writes trigger asynchronous dossier compilation at the
+configured interval when enabled, and `assistuff --memory audit-tags` reports
+tag usage and unknown tags. Model adapters include only the memory layers
+authorized by each manifest's `memory.reads` and `memory.dossier_access`.
 
 ## Remaining work
 
-Call `warm_pinned()` at startup, trigger dossier compilation from memory writes,
-add a memory-tag audit command, and compact `memory.md` above a configured size.
+Compact `memory.md` above a configured size while preserving searchable
+history; define the archive and retrieval behavior before pruning or moving
+existing notes.

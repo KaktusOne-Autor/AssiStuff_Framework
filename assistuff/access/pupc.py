@@ -26,8 +26,8 @@ class Pupc:
         return self.config.default_level
 
     def user_for_profile(self, profile: str) -> User:
-        level = self.level_for_profile(profile)
-        return User(level=level, name=profile)
+        logger.debug("profile %s has no authenticated account; using guest access", profile)
+        return User(level=0, name="guest")
 
     def check(self, user: User, required_level: int, *, action: str = "") -> bool:
         if user.level >= required_level:

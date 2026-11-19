@@ -6,6 +6,7 @@ import asyncio
 import logging
 from collections import defaultdict
 from collections.abc import AsyncIterator, Callable
+from dataclasses import replace
 
 from .events import ChainEvent
 
@@ -23,16 +24,24 @@ class OutputChain:
 
     def __init__(self) -> None:
         self._subscribers: list[Emitter] = []
+        self._final_subscribers: list[Emitter] = []
         self._queues: dict[str, asyncio.Queue[ChainEvent]] = defaultdict(asyncio.Queue)
         self._closed: set[str] = set()
+        self._last_events: dict[str, ChainEvent] = {}
 
     def subscribe(self, emitter: Emitter) -> None:
         if not callable(emitter):
             raise TypeError("emitter must be callable")
         self._subscribers.append(emitter)
 
+    def subscribe_final(self, emitter: Emitter) -> None:
+        if not callable(emitter):
+            raise TypeError("emitter must be callable")
+        self._final_subscribers.append(emitter)
+
     def emit(self, event: ChainEvent) -> None:
         self._queues[event.trace_id].put_nowait(event)
+        self._last_events[event.trace_id] = event
         for emitter in self._subscribers:
             try:
                 emitter(event)
@@ -43,6 +52,14 @@ class OutputChain:
         if trace_id in self._closed:
             return
         self._closed.add(trace_id)
+        final = self._last_events.pop(trace_id, None)
+        if final is not None and final.kind == "result":
+            final_event = replace(final, payload={**final.payload, "_final": True})
+            for emitter in self._final_subscribers:
+                try:
+                    emitter(final_event)
+                except Exception:
+                    logger.exception("final emitter failed for trace %s", trace_id)
         self._queues[trace_id].put_nowait(_SENTINEL)
 
     async def collect(self, trace_id: str) -> AsyncIterator[ChainEvent]:
@@ -59,7 +76,11 @@ class OutputChain:
         queue = self._queues.get(trace_id)
         if queue is None:
             return []
-        return list(queue._queue)  # noqa: SLF001 — pragmatic introspection
+        return [
+            event
+            for event in queue._queue
+            if isinstance(event, ChainEvent)
+        ]  # noqa: SLF001 — pragmatic introspection
 
     def final_result(self, trace_id: str) -> str | None:
         for event in reversed(self.events(trace_id)):

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "assistuff"
-version = "1.0"
+version = "1.0.1b1"
 description = "AssiStuff Framework — local-first voice assistant with peer-to-peer models"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -17,11 +17,13 @@ dependencies = [
     "requests>=2.31",
     "psutil>=5.9",
     "numpy>=1.26",
+    "jsonschema>=4.22",
 ]
 
 [project.optional-dependencies]
 gui = [
     "PyQt6>=6.6",
+    "PyQt6-WebEngine>=6.6",
     "pyqtgraph>=0.13",
     "qt-material>=2.14",
 ]

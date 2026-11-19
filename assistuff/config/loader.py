@@ -74,6 +74,21 @@ def load_runtime_config() -> RuntimeConfigBundle:
 
     framework = FrameworkConfig.model_validate(framework_data)
     models = _load_manifests(config_dir / "models", kind="model")
+    for model in models.values():
+        if model.runtime.backend != "remote_api":
+            continue
+        profile = model.runtime.endpoint_profile
+        endpoint = framework.runtime.remote_endpoints.get(profile or "")
+        if endpoint is None:
+            raise ConfigError(
+                f"model {model.id!r} references unknown remote endpoint "
+                f"profile {profile!r}"
+            )
+        if endpoint.provider != model.runtime.provider:
+            raise ConfigError(
+                f"model {model.id!r} provider does not match endpoint "
+                f"profile {profile!r}"
+            )
     skills = _load_manifests(config_dir / "skills", kind="skill")
     personalities = _load_personalities(config_dir / "personalities")
 

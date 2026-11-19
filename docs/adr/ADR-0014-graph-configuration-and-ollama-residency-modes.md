@@ -77,6 +77,13 @@ configured resource limits and Ollama's actual loaded-model state.
 
 ## Implementation status
 
-This ADR defines the target behavior. The existing Models and Skills tabs do
-not yet provide the graph editor, and `ModelResidency` does not yet implement
-the two selectable modes or background selection UI.
+The Graph tab now visualizes configured model and skill capability links,
+validates and saves capability/interop edits to the source YAML manifests,
+and provides controls for the residency mode and selected background model
+set. `ModelResidency` supports on-demand loads, capacity-aware eviction, and
+startup warming for pinned models and explicit background loads with Ollama's
+indefinite keep-alive. Restart the application after GUI edits for changed
+manifests and residency policy to take effect in the active dispatcher.
+
+Future work includes richer visual edge editing, per-model runtime status in
+the graph, and hardware-aware memory estimates before background loading.

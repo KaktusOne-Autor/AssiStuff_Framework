@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from .events import ChainEvent
@@ -41,6 +41,7 @@ class Capability:
     accepts_calls_from: list[str] = field(default_factory=lambda: ["*"])
     can_call: list[str] = field(default_factory=list)
     min_level: int = 0
+    routable: bool = True
 
     def accepts(self, caller: str) -> bool:
         if "*" in self.accepts_calls_from:
@@ -111,6 +112,13 @@ class CapabilityBus:
 
         unit = self.resolve(capability)
 
+        caller_unit = self._registry.get(caller)
+        if caller_unit is not None and not caller_unit.may_call(capability):
+            raise InteropDenied(
+                f"unit {caller_unit.id!r} is not allowed to call "
+                f"{capability!r}"
+            )
+
         if not unit.accepts(caller):
             raise InteropDenied(
                 f"unit {unit.id!r} does not accept calls from {caller!r}"
@@ -137,6 +145,11 @@ class CapabilityBus:
             async for event in self._run_with_ttl(
                 unit, capability, payload, caller=caller, trace=trace, ttl=ttl
             ):
+                if event.call_stack:
+                    yield event
+                    continue
+                event = replace(event, call_stack=tuple(trace.call_stack))
+                trace.record(event)
                 self._output_chain.emit(event)
                 yield event
         finally:
